@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = "nodejs";
 
@@ -17,6 +16,8 @@ artist: Artist name (optional, may be empty)
 
 Validity Rules:
 Treat lyrics as invalid if they are placeholder text, nonsensical, or under 20 words after trimming. Mark lyrics_ok false if invalid, true if valid.
+If lyrics include [Chorus], [Verse], or similar section headers, ignore these markers in your analysis.
+If lyrics include extraneous text like "You might also like" or "Embed", ignore these markers in your analysis.
 Treat artist as invalid if it is empty or equals any of the following (case-insensitive): "unknown", "n/a", "na", "none", "-". Mark artist_ok false if invalid, true if valid.
 If artist is invalid, treat it as null.
 If lyrics are invalid, still return the full JSON schema using safe placeholder values and explain the issue in validity.notes.
@@ -32,6 +33,8 @@ If artist is invalid, perform a purely text-internal analysis.
 
 Concise Evidence:
 Evidence fragments must be exact substrings from the provided lyrics, limited to 15 words or fewer. Never reproduce long passages.
+If you use two separate fragments to illustrate a point, split them with a slash (/). DO NOT INPUT ELLPISES THAT DO NOT EXIST.
+You are not allowed to add your own input or any text at all in the evidence fragments. They must be strictly taken from the lyrics.
 
 REQUIRED OUTPUT FORMAT
 
@@ -135,7 +138,7 @@ universal_hook: Why this meaning resonates beyond the specific narrative.
 8. UI Optimized
 tone_tags: 3–5 adjectives describing voice or affect.
 theme_tags: 3–5 conceptual nouns.
-complexity_score: Based on lyrical density and ambiguity.
+complexity_score: Based on lyrical density and ambiguity. (Reserve 5 for highly abstract/obscure lyrics that demand effortful interpretation; 1 for straightforward, literal narratives.)
 color_palette: Suggested emotional palette.
 
 CRITICAL PROHIBITIONS
@@ -145,7 +148,9 @@ NO DISCLAIMERS.
 NO MARKDOWN OR CODE FENCES.
 NO COMMENTS OR TRAILING COMMAS.
 OUTPUT JSON ONLY.
-VALIDATE THE SCHEMA YOU CREATED.
+ENSURE THAT ALL BRACKETS UTILIZED MATCH THE SCHEMA EXACTLY. ENSURE THAT THERE ARE NONE MISSING OR EXTRA.
+Verify that all sentence fragments are direct substrings from the lyrics. Do not alter them or add commentary to the sentence fragments.
+Before outputting, verify: valid JSON, no duplicate keys, all enums valid, stage count 2–4, motifs 3–5, highlights 3–4, evidence fragments ≤15 words, no extra text.
 `;
 
 // ---------- HELPERS ----------
@@ -154,6 +159,28 @@ function stripFences(s) {
     .trim()
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/\s*```$/i, "");
+}
+
+function cleanLyrics(raw) {
+  let text = String(raw || "");
+
+  // Remove section headers like [Verse 1], [Chorus], etc.
+  text = text.replace(/\[(verse|chorus|bridge|outro|intro|pre-chorus|hook).*?\]/gi, "");
+
+  // Remove "You might also like" blocks. (Common in pasted lyrics from some sites)
+  text = text.replace(/you might also like[\s\S]*?(?=\n\n|\r\n\r\n|$)/gi, "");
+
+  // Remove common metadata lines
+text = text.replace(/(embed|lyrics powered by.*)/gi, "");
+
+  // Remove extra blank lines
+  text = text
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .join("\n");
+
+  return text.trim();
 }
 
 function safeJsonParse(raw) {
@@ -178,15 +205,11 @@ function countLinesWords(lyrics) {
   return { line_count, word_count };
 }
 
-async function callGemini({ lyrics, artist_display, retryHint }) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  const modelName = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+async function callAPI({ lyrics, artist_display, retryHint }) {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  const modelName = process.env.DEEPSEEK_MODEL || "deepseek-chat";
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: modelName,
-    systemInstruction: SYSTEM_PROMPT,
-  });
+  if (!apiKey) throw new Error("Missing API_KEY on server.");
 
   const userPrompt = `
 ${retryHint ? `IMPORTANT: ${retryHint}\n` : ""}lyrics:
@@ -196,16 +219,34 @@ artist:
 ${artist_display}
 `.trim();
 
-  const res = await model.generateContent({
-    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-    generationConfig: {
-      temperature: 0.5,
-      topP: 0.85,
-      maxOutputTokens: 5000,
+  const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
     },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.5,
+      top_p: 0.85,
+    }),
   });
 
-  return res?.response?.text?.() ?? "";
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    const err = new Error(
+      `[DeepSeek Error ${res.status}] ${text || res.statusText}`
+    );
+    err.status = res.status;
+    throw err;
+  }
+
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content ?? "";
 }
 
 // ---------- ROUTE ----------
@@ -215,16 +256,16 @@ export async function POST(request) {
     const lyricsRaw = String(body?.lyrics ?? "");
     const artistRaw = String(body?.artist ?? "");
 
-    const lyrics = lyricsRaw.trim();
+    const lyrics = cleanLyrics(lyricsRaw);
     const artist = artistRaw.trim();
 
     if (!lyrics) {
       return NextResponse.json({ message: "Lyrics are required" }, { status: 400 });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (!process.env.DEEPSEEK_API_KEY) {
       return NextResponse.json(
-        { message: "Missing GEMINI_API_KEY on server" },
+        { message: "Missing API on server" },
         { status: 500 }
       );
     }
@@ -236,9 +277,9 @@ export async function POST(request) {
     if (word_count < 20) {
         return NextResponse.json(
             {
-                message: "Lyrics are too short.",
+                message: `Please provide lyrics with at least 20 words. You pasted ${word_count} words.`,
                 code: "LYRICS_TOO_SHORT",
-                detail: `Please provide lyrics with at least 20 words. You pasted ${word_count} words.`,
+                detail: "Lyrics are too short.",
                 min_words: 20,
                 word_count,
             },
@@ -261,28 +302,18 @@ export async function POST(request) {
     }
 
     // First attempt
-    let raw = await callGemini({ lyrics, artist_display, retryHint: "" });
-
-    // // TEMP OUTPUT #1 (uncomment for debugging)
-    // console.log("===== RAW GEMINI OUTPUT (attempt 1) =====");
-    // console.log(raw);
-    // console.log("===== END RAW OUTPUT =====");
+    let raw = await callAPI({ lyrics, artist_display, retryHint: "" });
 
     let parsed = safeJsonParse(raw);
 
     // Retry if JSON invalid (once)
     if (!parsed) {
-      raw = await callGemini({
+      raw = await callAPI({
         lyrics,
         artist_display,
         retryHint:
           "Your previous response was invalid JSON. Return ONLY valid JSON. Begin with { and end with }. No markdown/code fences. Do not include unescaped double quotes inside string values; if quoting a phrase, use single quotes.",
       });
-
-        // // TEMP OUTPUT #2 (uncomment for debugging)
-        // console.log("===== RAW GEMINI OUTPUT (attempt 2) =====");
-        // console.log(raw);
-        // console.log("===== END RAW OUTPUT =====");
 
       parsed = safeJsonParse(raw);
     }
@@ -309,15 +340,14 @@ export async function POST(request) {
   } catch (error) {
   console.error("Analysis error:", error);
 
+  const status = Number(error?.status) || 0;
   const msg = String(error?.message || error);
 
-  // Overloaded model
-  const isOverloaded =
-    msg.includes("503") ||
-    msg.toLowerCase().includes("overloaded") ||
-    msg.toLowerCase().includes("service unavailable");
-
-  if (isOverloaded) {
+  // DeepSeek overload (503)
+  if (
+    status === 503 ||
+    /overloaded|service unavailable|server busy|temporarily unavailable/i.test(msg)
+  ) {
     return NextResponse.json(
       {
         message: "Model overloaded: please click Analyze again.",
@@ -327,17 +357,52 @@ export async function POST(request) {
     );
   }
 
-  // Invalid model
-  const isBadModel =
-    msg.includes("404") ||
-    msg.toLowerCase().includes("not found") ||
-    msg.toLowerCase().includes("not supported for generatecontent");
+  // Rate limit / quota (429)
+  if (
+    status === 429 ||
+    /rate limit|quota|too many requests|rpd|tpd/i.test(msg)
+  ) {
+    return NextResponse.json(
+      {
+        message: "Rate limited. Please wait a moment and try again.",
+        code: "RATE_LIMITED",
+      },
+      { status: 429 }
+    );
+  }
 
-  if (isBadModel) {
+  // Auth errors (401/403)
+  if (status === 401 || /invalid api key|unauthorized/i.test(msg)) {
     return NextResponse.json(
       {
         message:
-          "That Gemini model name isn’t valid for generateContent. Pick a valid model. (THIS IS A DEV ERROR; contact the developer.)",
+          "Invalid API key. (THIS IS A DEV ERROR; contact the developer.)",
+        code: "INVALID_API_KEY",
+      },
+      { status: 502 }
+    );
+  }
+
+  if (status === 403 || /forbidden|permission/i.test(msg)) {
+    return NextResponse.json(
+      {
+        message:
+          "API key lacks permission. (THIS IS A DEV ERROR; contact the developer.)",
+        code: "FORBIDDEN",
+      },
+      { status: 502 }
+    );
+  }
+
+  // Invalid model (400 or DeepSeek returns message content)
+  if (
+    status === 400 ||
+    /model.*(not found|does not exist|invalid)|invalid model/i.test(msg)
+  ) {
+    return NextResponse.json(
+      {
+        message:
+          "Invalid model name. (THIS IS A DEV ERROR; contact the developer.)",
         code: "INVALID_MODEL",
         detail: msg,
       },
@@ -345,9 +410,21 @@ export async function POST(request) {
     );
   }
 
+  // Upstream bad gateway
+  if (status === 502 || status === 504) {
+    return NextResponse.json(
+      {
+        message: "Upstream provider error. Please try again.",
+        code: "UPSTREAM_ERROR",
+      },
+      { status: 502 }
+    );
+  }
+
+  // Default error
   return NextResponse.json(
-    { message: "Failed to analyze lyrics.", detail: msg },
+    { message: "Failed to analyze lyrics.", code: "SERVER_ERROR", detail: msg },
     { status: 500 }
   );
-}
+ }
 }
