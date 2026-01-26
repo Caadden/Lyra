@@ -233,6 +233,33 @@ export async function POST(request) {
     const { line_count, word_count } = countLinesWords(lyrics);
     const artist_display = artist ? artist : "Artist Not Specified";
 
+    if (word_count < 20) {
+        return NextResponse.json(
+            {
+                message: "Lyrics are too short.",
+                code: "LYRICS_TOO_SHORT",
+                detail: `Please provide lyrics with at least 20 words. You pasted ${word_count} words.`,
+                min_words: 20,
+                word_count,
+            },
+            { status: 400 }
+        );
+    }
+
+    const looksPlaceholder =
+    lyrics.toLowerCase().includes("paste lyrics") ||
+    lyrics.toLowerCase().includes("lorem ipsum");
+
+    if (looksPlaceholder) {
+    return NextResponse.json(
+        {
+        message: "That looks like placeholder text, not lyrics.",
+        code: "LYRICS_PLACEHOLDER",
+        },
+        { status: 400 }
+    );
+    }
+
     // First attempt
     let raw = await callGemini({ lyrics, artist_display, retryHint: "" });
 
@@ -280,7 +307,47 @@ export async function POST(request) {
 
     return NextResponse.json(parsed);
   } catch (error) {
-    console.error("Analysis error:", error);
-    return NextResponse.json({ message: "Failed to analyze lyrics" }, { status: 500 });
+  console.error("Analysis error:", error);
+
+  const msg = String(error?.message || error);
+
+  // Overloaded model
+  const isOverloaded =
+    msg.includes("503") ||
+    msg.toLowerCase().includes("overloaded") ||
+    msg.toLowerCase().includes("service unavailable");
+
+  if (isOverloaded) {
+    return NextResponse.json(
+      {
+        message: "Model overloaded: please click Analyze again.",
+        code: "MODEL_OVERLOADED",
+      },
+      { status: 503 }
+    );
   }
+
+  // Invalid model
+  const isBadModel =
+    msg.includes("404") ||
+    msg.toLowerCase().includes("not found") ||
+    msg.toLowerCase().includes("not supported for generatecontent");
+
+  if (isBadModel) {
+    return NextResponse.json(
+      {
+        message:
+          "That Gemini model name isn’t valid for generateContent. Pick a valid model. (THIS IS A DEV ERROR; contact the developer.)",
+        code: "INVALID_MODEL",
+        detail: msg,
+      },
+      { status: 502 }
+    );
+  }
+
+  return NextResponse.json(
+    { message: "Failed to analyze lyrics.", detail: msg },
+    { status: 500 }
+  );
+}
 }
