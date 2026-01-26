@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export const runtime = "nodejs";
 
 const SYSTEM_PROMPT = `
 SYSTEM PROMPT: LYRIC ANALYSIS ENGINE
@@ -145,42 +148,139 @@ OUTPUT JSON ONLY.
 VALIDATE THE SCHEMA YOU CREATED.
 `;
 
+// ---------- HELPERS ----------
+function stripFences(s) {
+  return (s || "")
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+}
 
+function safeJsonParse(raw) {
+  const text = stripFences(raw).trim();
+  if (!text.startsWith("{") || !text.endsWith("}")) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
 
+function countLinesWords(lyrics) {
+  const lines = String(lyrics || "")
+    .split(/\r\n|\r|\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const line_count = lines.length;
+  const word_count = (String(lyrics || "").trim().match(/\S+/g) || []).length;
+
+  return { line_count, word_count };
+}
+
+async function callGemini({ lyrics, artist_display, retryHint }) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const modelName = process.env.GEMINI_MODEL || "gemini-3-flash-preview";
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: modelName,
+    systemInstruction: SYSTEM_PROMPT,
+  });
+
+  const userPrompt = `
+${retryHint ? `IMPORTANT: ${retryHint}\n` : ""}lyrics:
+${lyrics}
+
+artist:
+${artist_display}
+`.trim();
+
+  const res = await model.generateContent({
+    contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+    generationConfig: {
+      temperature: 0.5,
+      topP: 0.85,
+      maxOutputTokens: 5000,
+    },
+  });
+
+  return res?.response?.text?.() ?? "";
+}
+
+// ---------- ROUTE ----------
 export async function POST(request) {
   try {
-    const { lyrics, artist } = await request.json();
+    const body = await request.json().catch(() => ({}));
+    const lyricsRaw = String(body?.lyrics ?? "");
+    const artistRaw = String(body?.artist ?? "");
 
-    if (!lyrics || lyrics.trim().length === 0) {
+    const lyrics = lyricsRaw.trim();
+    const artist = artistRaw.trim();
+
+    if (!lyrics) {
+      return NextResponse.json({ message: "Lyrics are required" }, { status: 400 });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
-        { message: "Lyrics are required" },
-        { status: 400 }
+        { message: "Missing GEMINI_API_KEY on server" },
+        { status: 500 }
       );
     }
 
-    // For now, return mock data
-    const analysis = {
-      emotions: [
-        { name: "nostalgic", intensity: 0.82 },
-        { name: "hopeful", intensity: 0.64 },
-        { name: "longing", intensity: 0.58 },
-      ],
-      themes: ["growth", "distance", "time", "acceptance"],
-      tone: "bittersweet and reflective",
-      summary: [
-        "The speaker looks back on memories with warmth and regret.",
-        "There's tension between holding on and moving forward.",
-        "The lyrics frame change as painful but necessary.",
-      ],
-      takeaway: "This song captures the ache of remembering while choosing to keep going.",
+    // server-truth metadata
+    const { line_count, word_count } = countLinesWords(lyrics);
+    const artist_display = artist ? artist : "Artist Not Specified";
+
+    // First attempt
+    let raw = await callGemini({ lyrics, artist_display, retryHint: "" });
+
+    // // TEMP OUTPUT #1 (uncomment for debugging)
+    // console.log("===== RAW GEMINI OUTPUT (attempt 1) =====");
+    // console.log(raw);
+    // console.log("===== END RAW OUTPUT =====");
+
+    let parsed = safeJsonParse(raw);
+
+    // Retry if JSON invalid (once)
+    if (!parsed) {
+      raw = await callGemini({
+        lyrics,
+        artist_display,
+        retryHint:
+          "Your previous response was invalid JSON. Return ONLY valid JSON. Begin with { and end with }. No markdown/code fences. Do not include unescaped double quotes inside string values; if quoting a phrase, use single quotes.",
+      });
+
+        // // TEMP OUTPUT #2 (uncomment for debugging)
+        // console.log("===== RAW GEMINI OUTPUT (attempt 2) =====");
+        // console.log(raw);
+        // console.log("===== END RAW OUTPUT =====");
+
+      parsed = safeJsonParse(raw);
+    }
+
+    if (!parsed) {
+      return NextResponse.json(
+        {
+          message: "Model returned invalid JSON.",
+          rawPreview: stripFences(raw).slice(0, 900),
+        },
+        { status: 502 }
+      );
+    }
+
+    // override metadata counts/display no matter what model returns
+    parsed.metadata = {
+      ...(parsed.metadata || {}),
+      line_count,
+      word_count,
+      artist_display,
     };
 
-    return NextResponse.json(analysis);
+    return NextResponse.json(parsed);
   } catch (error) {
     console.error("Analysis error:", error);
-    return NextResponse.json(
-      { message: "Failed to analyze lyrics" },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Failed to analyze lyrics" }, { status: 500 });
   }
 }
