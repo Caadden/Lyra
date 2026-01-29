@@ -24,8 +24,8 @@ If lyrics are invalid, still return the full JSON schema using safe placeholder 
 
 ANALYTICAL PHILOSOPHY
 
-Text-First Principle: All analysis must originate from the provided lyrics. Every interpretive claim must be grounded in direct textual evidence.
-Thesis-Driven: Construct a compelling, arguable central thesis. Do not summarize.
+Text-First Principle: All analysis must originate from the provided lyrics. Every interpretive claim must be grounded in direct textual evidence. This evidence includes not only literal statements but also recurring symbols, allusions, grammatical structures, and patterns of diction. Crucially, treat the text as a message crafted in and for a real world. When lyrics employ a specialized lexicon, interrogate its purpose: is it primarily building an internal metaphor, or is it leveraging shared cultural concepts to articulate a specific social, relational, or identity-based conflict? The most compelling interpretation often explains why this specific language is the necessary vehicle for this specific human experience.
+Thesis-Driven: Construct a compelling, specific, and arguable central thesis. Do not summarize. Avoid vague, generic summaries of emotion or internal conflict. Actively avoid defaulting to the most abstract or psychologically universal reading if the textual clues point toward a more concrete, culturally-situated tension. A strong thesis often synthesizes textual elements to make a bold claim about a precise facet of human experience, which may include themes of identity, power, societal pressure, or belonging.
 
 Context as Lens, Not Crutch:
 If artist is valid, use internal knowledge only to sharpen interpretation of the lyrics. Avoid biography dumps.
@@ -35,6 +35,10 @@ Concise Evidence:
 Evidence fragments must be exact substrings from the provided lyrics, limited to 15 words or fewer. Never reproduce long passages.
 If you use two separate fragments to illustrate a point, split them with a slash (/). DO NOT INPUT ELLPISES THAT DO NOT EXIST.
 You are not allowed to add your own input or any text at all in the evidence fragments. They must be strictly taken from the lyrics.
+If lyrics are not in English, preserve original fragments but optionally paraphrase their meaning in the insight.
+
+Symbolic and Allusive Coherence:
+Treat the lyrics as a coherent artistic system. If the text employs a distinct lexicon, analyze how that system functions. However, coherence is not just internal. A pattern of allusions should be evaluated for how it positions the speaker's voice within—or against—broader cultural narratives or power structures.
 
 REQUIRED OUTPUT FORMAT
 
@@ -49,10 +53,7 @@ NO LEADING OR TRAILING TEXT: The response must begin with { and end with }.
     "notes": string
   },
   "metadata": {
-    "inferred_title": string,
     "artist_display": string,
-    "line_count": number,
-    "word_count": number
   },
   "core_insight": {
     "thesis": string,
@@ -104,15 +105,12 @@ NO LEADING OR TRAILING TEXT: The response must begin with { and end with }.
 SECTION-SPECIFIC INSTRUCTIONS
 
 1. Validity & Metadata
-inferred_title: Extract from first line or chorus. Max 5 words.
 artist_display: Use provided artist name or "Artist Not Specified".
-line_count and word_count will be computed and injected by the server. Do not estimate them.
-If you include them, use 0 as a placeholder.
 
 2. Core Insight
 thesis: One sentence. Argumentative. Synthesizes meaning.
 one_line_summary: Ultra-concise phrasing for UI display.
-central_conflict: Core psychological or philosophical tension (e.g., "faith vs. doubt").
+central_conflict: Core psychological or philosophical tension. This should be a specific conceptual clash, not a general one (e.g., "love vs. hate," "self vs. other").
 
 3. Mood Arc
 emotional_quality: Use nuanced descriptors (e.g., "resigned melancholy", "defiant fragility").
@@ -128,7 +126,7 @@ role: Explain how the motif advances the thesis.
 Each highlight must identify a specific craft device, quote an exact fragment, and explain how the device produces meaning.
 
 6. Context Note
-is_applicable: true only if artist is valid AND contextual knowledge meaningfully sharpens interpretation.
+is_applicable: true only if artist is valid AND contextual knowledge meaningfully sharpens interpretation. This is particularly applicable when an artist's known thematic preoccupations provide a clarifying framework for the specific symbols and conflicts present in the text.
 insight: One sentence connecting artist identity to the textual reading.
 
 7. Takeaway
@@ -142,6 +140,7 @@ complexity_score: Based on lyrical density and ambiguity. (Reserve 5 for highly 
 color_palette: Suggested emotional palette.
 
 CRITICAL PROHIBITIONS
+
 NO WEB SEARCHING.
 NO PLOT SUMMARY.
 NO DISCLAIMERS.
@@ -149,6 +148,7 @@ NO MARKDOWN OR CODE FENCES.
 NO COMMENTS OR TRAILING COMMAS.
 OUTPUT JSON ONLY.
 ENSURE THAT ALL BRACKETS UTILIZED MATCH THE SCHEMA EXACTLY. ENSURE THAT THERE ARE NONE MISSING OR EXTRA.
+Do not default to treating all statements as literal, surface-level propositions if a stronger symbolic or allusive reading is supported by cumulative textual evidence. The most obvious reading is not always the most insightful.
 Verify that all sentence fragments are direct substrings from the lyrics. Do not alter them or add commentary to the sentence fragments.
 Before outputting, verify: valid JSON, no duplicate keys, all enums valid, stage count 2–4, motifs 3–5, highlights 3–4, evidence fragments ≤15 words, no extra text.
 `;
@@ -219,7 +219,7 @@ artist:
 ${artist_display}
 `.trim();
 
-  const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+  const res = await fetch("https://api.deepseek.com/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -265,7 +265,7 @@ export async function POST(request) {
 
     if (!process.env.DEEPSEEK_API_KEY) {
       return NextResponse.json(
-        { message: "Missing API on server" },
+        { message: "Missing API key on server" },
         { status: 500 }
       );
     }
@@ -305,6 +305,8 @@ export async function POST(request) {
     let raw = await callAPI({ lyrics, artist_display, retryHint: "" });
 
     let parsed = safeJsonParse(raw);
+
+    console.log("API Raw Response:", raw);
 
     // Retry if JSON invalid (once)
     if (!parsed) {

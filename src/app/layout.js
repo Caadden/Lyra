@@ -12,8 +12,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "Lyra",
+  title: "Lyra | Premium AI Lyrics Analysis",
   description: "Analyze and understand song lyrics like never before.",
+  icons: {
+    icon: [
+      "/lyra-favicon.ico",
+      "/lyra-android-chrome-192x192.png",
+      "/lyra-android-chrome-512x512.png",
+    ],
+    apple: "/lyra-apple-touch-icon.png",
+    shortcut: "/lyra-favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }) {
