@@ -44,6 +44,10 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --color-lyra-purple: var(--lyra-purple);
+  --color-lyra-pink: var(--lyra-pink);
+  --color-lyra-cyan: var(--lyra-cyan);
+  --color-lyra-gray: var(--lyra-gray);
 }
 
 :root {
@@ -79,6 +83,10 @@
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
+  --lyra-purple: #b857f6;
+  --lyra-pink: #f782d0;
+  --lyra-cyan: #8da5f3;
+  --lyra-gray: #424549;
 }
 
 .dark {
@@ -113,6 +121,9 @@
   --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.553 0.013 58.071);
+  --lyra-purple: #b857f6;
+  --lyra-pink: #f782d0;
+  --lyra-cyan: #8da5f3;
 }
 
 @layer base {

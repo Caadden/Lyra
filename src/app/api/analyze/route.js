@@ -306,7 +306,8 @@ export async function POST(request) {
 
     let parsed = safeJsonParse(raw);
 
-    console.log("API Raw Response:", raw);
+    // Debugging log:
+    // console.log("API Raw Response:", raw);
 
     // Retry if JSON invalid (once)
     if (!parsed) {
