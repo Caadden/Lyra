@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
+import { useTransition } from "../components/transition";
 
 export default function AnalyzePage() {
   const [lyrics, setLyrics] = useState("");
@@ -9,7 +10,14 @@ export default function AnalyzePage() {
   const [result, setResult] = useState(null);
   const [showResults, setShowResults] = useState(false);
 
+  const { pageReady } = useTransition();
   const resultsRef = useRef(null);
+
+  useEffect(() => {
+    // Reset state
+    setStatus("idle");
+    pageReady();
+  }, []);
 
   const charCount = lyrics.length;
   const tooLong = charCount > 8000;
@@ -57,15 +65,23 @@ export default function AnalyzePage() {
   };
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-5 pt-14 pb-20">
-      {/* INPUT SECTION */}
-      <section className="min-h-[82vh]">
-        <h1 className="text-4xl font-semibold tracking-tight">Analyze</h1>
-        <p className="mt-3 text-sm leading-6 text-neutral-600">
+    <div
+      className="min-h-screen"
+      style={{
+        background:
+          "linear-gradient(to bottom, #18181b 0%, #18181b 80%, var(--color-lyra-gray) 100%)",
+      }}
+    >
+      <main className="mx-auto w-full max-w-3xl px-5 pt-14 pb-20">
+        {/* INPUT SECTION */}
+        <section className="min-h-[82vh]">
+        <h1 className="text-4xl font-semibold tracking-tight text-white">Analyze</h1>
+        <p className="mt-3 text-sm leading-6 text-neutral-400">
           Paste lyrics below. We won’t store anything, promise.
+          (this page is a very early implementation)
         </p>
 
-        <label className="mt-7 block text-sm font-semibold text-neutral-900">
+        <label className="mt-7 block text-sm font-semibold text-white">
           Lyrics
         </label>
         <textarea
@@ -82,8 +98,8 @@ export default function AnalyzePage() {
           </span>
         </div>
 
-        <label className="mt-5 block text-sm font-semibold text-neutral-900">
-          Artist <span className="font-normal text-neutral-500">(optional)</span>
+        <label className="mt-5 block text-sm font-semibold text-white">
+          Artist <span className="font-normal text-neutral-400">(optional)</span>
         </label>
         <input
           value={artist}
@@ -98,8 +114,8 @@ export default function AnalyzePage() {
           className={[
             "mt-6 inline-flex items-center justify-center rounded-full border px-5 py-3 text-sm font-semibold",
             canAnalyze
-              ? "border-neutral-300 bg-white text-neutral-900 hover:bg-neutral-50 active:scale-[0.99]"
-              : "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400",
+              ? "border-transparent bg-gradient-to-tr from-lyra-purple to-lyra-pink text-white hover:opacity-90 active:scale-[0.99]"
+              : "cursor-not-allowed border-neutral-700 bg-neutral-800 text-neutral-500",
           ].join(" ")}
         >
           {status === "loading" ? "Analyzing…" : "Analyze"}
@@ -307,6 +323,7 @@ export default function AnalyzePage() {
           </div>
         </section>
       )}
-    </main>
+      </main>
+    </div>
   );
 }
