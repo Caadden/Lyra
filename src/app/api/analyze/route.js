@@ -153,7 +153,7 @@ Verify that all sentence fragments are direct substrings from the lyrics. Do not
 Before outputting, verify: valid JSON, no duplicate keys, all enums valid, stage count 2–4, motifs 3–5, highlights 3–4, evidence fragments ≤15 words, no extra text.
 `;
 
-// ---------- HELPERS ----------
+// helpers
 function stripFences(s) {
   return (s || "")
     .trim()
@@ -164,16 +164,16 @@ function stripFences(s) {
 function cleanLyrics(raw) {
   let text = String(raw || "");
 
-  // Remove section headers like [Verse 1], [Chorus], etc.
+  // remove section headers like [verse 1], [chorus], etc.
   text = text.replace(/\[(verse|chorus|bridge|outro|intro|pre-chorus|hook).*?\]/gi, "");
 
-  // Remove "You might also like" blocks. (Common in pasted lyrics from some sites)
+  // remove "You might also like" blocks (common in Genius lyrics)
   text = text.replace(/you might also like[\s\S]*?(?=\n\n|\r\n\r\n|$)/gi, "");
 
-  // Remove common metadata lines
+  // remove common metadata lines
 text = text.replace(/(embed|lyrics powered by.*)/gi, "");
 
-  // Remove extra blank lines
+  // remove extra blank lines
   text = text
     .split(/\r?\n/)
     .map(line => line.trim())
@@ -205,7 +205,7 @@ function countLinesWords(lyrics) {
   return { line_count, word_count };
 }
 
-async function callAPI({ lyrics, artist_display, retryHint }) {
+async function callAPI({ lyrics, artist_display, retryHint, signal }) {
   const apiKey = process.env.DEEPSEEK_API_KEY;
   const modelName = process.env.DEEPSEEK_MODEL || "deepseek-chat";
 
@@ -219,37 +219,55 @@ artist:
 ${artist_display}
 `.trim();
 
-  const res = await fetch("https://api.deepseek.com/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: modelName,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.5,
-      top_p: 0.85,
-    }),
-  });
+  // abort controller for cancellations
+  const upstreamController = new AbortController();
+  const onAbort = () => upstreamController.abort();
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    const err = new Error(
-      `[DeepSeek Error ${res.status}] ${text || res.statusText}`
-    );
-    err.status = res.status;
-    throw err;
+  if (signal) {
+    if (signal.aborted) upstreamController.abort();
+    else signal.addEventListener("abort", onAbort, { once: true });
   }
 
-  const data = await res.json();
-  return data?.choices?.[0]?.message?.content ?? "";
+  try {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: upstreamController.signal,
+      body: JSON.stringify({
+        model: modelName,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.5,
+        top_p: 0.85,
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const err = new Error(
+        `[DeepSeek Error ${res.status}] ${text || res.statusText}`
+      );
+      err.status = res.status;
+      throw err;
+    }
+
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content ?? "";
+  } finally {
+    if (signal) {
+      try {
+        signal.removeEventListener("abort", onAbort);
+      } catch {}
+    }
+  }
 }
 
-// ---------- ROUTE ----------
+// route
 export async function POST(request) {
   try {
     const body = await request.json().catch(() => ({}));
@@ -270,14 +288,14 @@ export async function POST(request) {
       );
     }
 
-    // server-truth metadata
+    // metadata
     const { line_count, word_count } = countLinesWords(lyrics);
     const artist_display = artist ? artist : "Artist Not Specified";
 
     if (word_count < 20) {
         return NextResponse.json(
             {
-                message: `Please provide lyrics with at least 20 words. You pasted ${word_count} words.`,
+                message: `Please provide lyrics with at least 20 words. You pasted ${word_count} word${word_count === 1 ? "" : "s"}.`,
                 code: "LYRICS_TOO_SHORT",
                 detail: "Lyrics are too short.",
                 min_words: 20,
@@ -301,21 +319,19 @@ export async function POST(request) {
     );
     }
 
-    // First attempt
-    let raw = await callAPI({ lyrics, artist_display, retryHint: "" });
+    // first attempt
+    let raw = await callAPI({ lyrics, artist_display, retryHint: "", signal: request.signal });
 
     let parsed = safeJsonParse(raw);
 
-    // Debugging log:
-    // console.log("API Raw Response:", raw);
-
-    // Retry if JSON invalid (once)
+    // retry if JSON invalid (once)
     if (!parsed) {
       raw = await callAPI({
         lyrics,
         artist_display,
         retryHint:
           "Your previous response was invalid JSON. Return ONLY valid JSON. Begin with { and end with }. No markdown/code fences. Do not include unescaped double quotes inside string values; if quoting a phrase, use single quotes.",
+        signal: request.signal,
       });
 
       parsed = safeJsonParse(raw);
@@ -346,6 +362,13 @@ export async function POST(request) {
   const status = Number(error?.status) || 0;
   const msg = String(error?.message || error);
 
+  if (error?.name === "AbortError") {
+  return NextResponse.json(
+    { message: "Canceled.", code: "CANCELED" },
+    { status: 499 } // client closed Request
+    );
+  }
+
   // DeepSeek overload (503)
   if (
     status === 503 ||
@@ -360,7 +383,7 @@ export async function POST(request) {
     );
   }
 
-  // Rate limit / quota (429)
+  // rate limit 429
   if (
     status === 429 ||
     /rate limit|quota|too many requests|rpd|tpd/i.test(msg)
@@ -374,7 +397,7 @@ export async function POST(request) {
     );
   }
 
-  // Auth errors (401/403)
+  // auth errors 401 or 403
   if (status === 401 || /invalid api key|unauthorized/i.test(msg)) {
     return NextResponse.json(
       {
@@ -397,7 +420,7 @@ export async function POST(request) {
     );
   }
 
-  // Invalid model (400 or DeepSeek returns message content)
+  // invalid model 400
   if (
     status === 400 ||
     /model.*(not found|does not exist|invalid)|invalid model/i.test(msg)
@@ -413,7 +436,7 @@ export async function POST(request) {
     );
   }
 
-  // Upstream bad gateway
+  // upstream bad gateway 502 or 504
   if (status === 502 || status === 504) {
     return NextResponse.json(
       {
@@ -424,7 +447,7 @@ export async function POST(request) {
     );
   }
 
-  // Default error
+  // default message for other errors
   return NextResponse.json(
     { message: "Failed to analyze lyrics.", code: "SERVER_ERROR", detail: msg },
     { status: 500 }

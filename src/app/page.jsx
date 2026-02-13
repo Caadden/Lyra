@@ -21,7 +21,7 @@ export default function Home() {
         <section className="min-h-screen flex flex-col justify-center items-center text-center">
           <div className="relative">
             <h1
-              className={`${racingSans.className} text-[clamp(8rem,20vw,18rem)] font-black leading-none tracking-tight bg-gradient-to-tr from-lyra-purple to-lyra-pink bg-clip-text text-transparent pb-4 pl-4 pt-4`}
+              className={`${racingSans.className} text-[clamp(8rem,20vw,18rem)] font-black leading-none tracking-tight bg-linear-to-tr from-lyra-purple to-lyra-pink bg-clip-text text-transparent pb-4 pl-4 pt-4`}
               style={{
                 textShadow: `
                   -3px -3px 0 rgba(168, 85, 247, 0.4),
@@ -46,14 +46,17 @@ export default function Home() {
               disabled={busy}
               onClick={() => transitionTo("/analyze")}
               className={[
-                "rounded-2xl px-6 py-3 font-semibold text-zinc-900 bg-gradient-to-tr from-lyra-purple to-lyra-pink active:scale-[0.99] transition-all",
+                "rounded-2xl px-6 py-3 font-semibold text-zinc-900 bg-linear-to-tr from-lyra-purple to-lyra-pink active:scale-[0.99] transition-all",
                 busy ? "opacity-70 cursor-not-allowed" : "cursor-pointer hover:opacity-90 hover:shadow-lg",
               ].join(" ")}
             >
               Analyze lyrics
             </button>
 
-            <button className="rounded-2xl px-6 py-3 font-semibold text-zinc-200 border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 cursor-pointer transition-all">
+            <button
+              onClick={() => transitionTo("/how-it-works")}
+              className="rounded-2xl px-6 py-3 font-semibold text-zinc-200 border border-white/15 bg-white/5 hover:bg-white/10 hover:border-white/25 cursor-pointer transition-all"
+            >
               How it works
             </button>
           </div>

@@ -134,3 +134,32 @@
     @apply bg-background text-foreground;
   }
 }
+
+html {
+  scrollbar-width: none;     /* Firefox */
+  -ms-overflow-style: none;  /* IE/old Edge */
+}
+html::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+html {
+  overflow-y: scroll;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE/Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 110px;
+}

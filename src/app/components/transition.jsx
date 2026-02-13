@@ -7,7 +7,7 @@ const TransitionCtx = createContext(null);
 
 export function TransitionProvider({ children }) {
   const router = useRouter();
-  const [phase, setPhase] = useState("idle"); // idle | out | loading | in
+  const [phase, setPhase] = useState("idle");
   const [busy, setBusy] = useState(false);
 
   const api = useMemo(() => {
@@ -22,27 +22,25 @@ export function TransitionProvider({ children }) {
       setBusy(true);
       setPhase("out");
 
-      // blur/fade OUT
+      // blur/fade
       await new Promise((r) => setTimeout(r, outMs + holdMs));
 
       // navigate
       if (to) router.push(to);
 
-      // Stay blurred while page is loading
+      // stay blurred while loading
       setPhase("loading");
 
-      // Wait a bit for page to start rendering, then transition in
+      // wait for render, then transition in
       await new Promise((r) => setTimeout(r, inMs));
       setPhase("in");
-      
-      // This phase exists briefly—pages should call pageReady() to finish
     };
 
     const pageReady = () => {
       setTimeout(() => {
         setPhase("idle");
         setBusy(false);
-      }, 300); // 300ms delay after page is ready
+      }, 100); // 100ms delay after page is ready
     };
 
     const transitionTo = (to, opts = {}) => transition({ to, ...opts });
@@ -52,7 +50,7 @@ export function TransitionProvider({ children }) {
 
   return (
     <TransitionCtx.Provider value={api}>
-      {/* Wrap page content for blur */}
+      {/* wrap page content for blur */}
       <div
         style={{
           filter:
@@ -72,7 +70,7 @@ export function TransitionProvider({ children }) {
       </div>
       <div
         aria-hidden="true"
-        className="fixed inset-0 pointer-events-none z-[9999]"
+        className="fixed inset-0 pointer-events-none z-9999"
         style={{
           opacity: phase === "out" ? 1 : 0,
           transition: "opacity 160ms ease",
