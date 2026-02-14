@@ -124,7 +124,11 @@ export default function AnalyzePage() {
     startEta();
 
     requestAnimationFrame(() => {
-      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      const el = resultsRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const target = window.scrollY + rect.top - (window.innerHeight - rect.height) / 2;
+      window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
     });
 
     try {
@@ -478,9 +482,10 @@ export default function AnalyzePage() {
                         {result.mood_arc.stages.map((s, idx) => (
                           <span
                             key={idx}
-                            className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/65"
+                            className="group relative rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/65 transition"
                           >
                             {s.stage}
+                            <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
                           </span>
                         ))}
                       </div>
@@ -606,17 +611,19 @@ export default function AnalyzePage() {
                     {(result?.ui_optimized?.tone_tags || []).map((t) => (
                       <span
                         key={`tone-${t}`}
-                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65"
+                        className="group relative rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 transition hover:bg-white/10"
                       >
                         {t}
+                        <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
                       </span>
                     ))}
                     {(result?.ui_optimized?.theme_tags || []).map((t) => (
                       <span
                         key={`theme-${t}`}
-                        className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65"
+                        className="group relative rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 transition hover:bg-white/10"
                       >
                         {t}
+                        <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
                       </span>
                     ))}
                   </div>

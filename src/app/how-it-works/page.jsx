@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 
 export default function HowItWorksPage() {
@@ -60,6 +61,7 @@ export default function HowItWorksPage() {
   }, []);
 
   return (
+    <>
     <div
       className="relative min-h-screen"
       style={{
@@ -92,13 +94,13 @@ export default function HowItWorksPage() {
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
           <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70 backdrop-blur">
-            <span className="leading-none">thesis-driven</span>
+            <span className="leading-none">emotional quality</span>
           </span>
           <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70 backdrop-blur">
             evidence-anchored
           </span>
           <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70 backdrop-blur">
-            slow reveal
+            expressive reveal
           </span>
         </div>
 
@@ -187,7 +189,7 @@ export default function HowItWorksPage() {
                   motifs and highlights quote fragments as anchors.
                 </li>
                 <li>
-                  <span className="font-semibold text-white/85">UI reveals:</span>{" "}
+                  <span className="font-semibold text-white/85">UI reveal:</span>{" "}
                   the “core insight” lands first, then the reading unfolds.
                 </li>
               </ul>
@@ -254,6 +256,10 @@ export default function HowItWorksPage() {
                   results are a lens, not a definitive meaning.
                 </p>
                 <p>
+                  <span className="font-semibold text-white/85">Privacy:</span>{" "}
+                  The API used is DeepSeek, and they state that they do not store or use any content sent.
+                </p>
+                <p>
                   <span className="font-semibold text-white/85">Storage:</span>{" "}
                   We don’t store lyrics or analyses. Everything is processed in-memory and discarded after.
                 </p>
@@ -269,7 +275,7 @@ export default function HowItWorksPage() {
               <div className="mt-6 space-y-4">
                 <FAQ
                   q="Why is artist recommended?"
-                  a="It helps the engine pick an appropriate analysis and avoid generic framing when the lyric is ambiguous."
+                  a="It helps the engine pick an appropriate analysis and avoid generic framing when the lyric is ambiguous. We also found in our testing that it heavily improves analysis."
                 />
                 <FAQ
                   q="Why do results vary between runs?"
@@ -277,7 +283,7 @@ export default function HowItWorksPage() {
                 />
                 <FAQ
                   q="Why did Lyra say my lyrics were invalid?"
-                  a="Usually because the text was too short, placeholder-y, or included mostly non-lyric junk."
+                  a="We try to prevent the analysis of inputs that aren’t really lyrics, since the engine is designed for lyrical content and can produce weird results when given something else."
                 />
               </div>
             </Section>
@@ -285,6 +291,9 @@ export default function HowItWorksPage() {
         </div>
       </div>
     </div>
+
+    <SuggestionBubble />
+  </>
   );
 }
 
@@ -577,4 +586,124 @@ function AnimatedBackground({ active }) {
       `}</style>
     </div>
   );
+}
+function SuggestionBubble() {
+  const [open, setOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!suggestion.trim()) return;
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ suggestion }),
+      });
+
+      if (response.ok) {
+        setSuggestion("");
+        setSubmitted(true);
+        setTimeout(() => {
+          setSubmitted(false);
+          setOpen(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error("Failed to submit suggestion:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!mounted) return null;
+
+  const content = (
+    <div className="fixed bottom-6 right-6 z-50 pointer-events-auto">
+      {!open ? (
+        <motion.button
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3, delay: 0.5 }}
+          onClick={() => setOpen(true)}
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-lyra-purple/30 to-lyra-pink/20 shadow-lg backdrop-blur-xl transition hover:border-white/40 hover:from-lyra-purple/40 hover:to-lyra-pink/30"
+          aria-label="Open suggestion form"
+        >
+          <svg
+            className="h-5 w-5 text-white/80 mt-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 8c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm0 2c-2.21 0-4 1.79-4 4v2h8v-2c0-2.21-1.79-4-4-4zm6 5v-1h1v1h-1zm-1 0v-1h1v1h-1zm-6 0v-1h1v1h-1zm-1 0v-1h1v1h-1z"
+            />
+          </svg>
+        </motion.button>
+      ) : (
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.8, opacity: 0, y: 20 }}
+          transition={{ duration: 0.3 }}
+          className="w-80 rounded-[20px] border border-white/10 bg-white/6 p-4 backdrop-blur-xl shadow-lg"
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-white">Send a suggestion</h3>
+            <button
+              onClick={() => setOpen(false)}
+              className="text-white/50 transition hover:text-white/80"
+              aria-label="Close suggestion form"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {submitted ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center gap-2 py-4"
+            >
+              <div className="text-3xl">✨</div>
+              <p className="text-center text-sm text-white/80">Thanks for the feedback!</p>
+            </motion.div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <textarea
+                value={suggestion}
+                onChange={(e) => setSuggestion(e.target.value)}
+                placeholder="What could Lyra do better?"
+                className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/80 placeholder-white/30 transition focus:border-white/20 focus:bg-black/40 focus:outline-none focus:ring-0"
+                rows={3}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !suggestion.trim()}
+                className="w-full rounded-lg bg-gradient-to-r from-lyra-purple/80 to-lyra-pink/80 px-3 py-2 text-xs font-semibold text-white transition hover:from-lyra-purple hover:to-lyra-pink disabled:opacity-50"
+              >
+                {isLoading ? "Sending…" : "Send"}
+              </button>
+            </form>
+          )}
+        </motion.div>
+      )}
+    </div>
+  );
+
+  return createPortal(content, document.body);
 }

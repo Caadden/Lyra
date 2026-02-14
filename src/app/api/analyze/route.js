@@ -21,6 +21,10 @@ If lyrics include extraneous text like "You might also like" or "Embed", ignore 
 Treat artist as invalid if it is empty or equals any of the following (case-insensitive): "unknown", "n/a", "na", "none", "-". Mark artist_ok false if invalid, true if valid.
 If artist is invalid, treat it as null.
 If lyrics are invalid, still return the full JSON schema using safe placeholder values and explain the issue in validity.notes.
+If lyrics are inherently redundant or obviously have no meaningful content (e.g., "la la la" repeated, or "happy birthday" repeated, like basic stuff), treat as invalid and explain in validity.notes. When returning thesis, use the phrase "Lyrics lack meaningful content for analysis."
+If lyrics don't have a great basis for meaning, don't try and force meaning. If it's obvious the lyrics are not meant to be meaningful, you can say that. Do not force an interpretation that you think is weak or unlikely. When returning thesis, use the phrase "Lyrics lack meaningful content for analysis."
+If lyrics aren't really lyrics at all but some other kind of text (e.g., a recipe, a news article, etc.), treat as invalid and explain in validity.notes. You can return "N/A" for all fields except validity.lyrics_ok, validity.notes and thesis. Explain the issue in validity.notes and when returning thesis, use the phrase "Lyrics lack meaningful content for analysis.". [this does not apply to poems, as long as they have a poetic or lyrical quality and aren't just straightforward prose.]
+If you state that lyrics don't have a great basis for meaning, just return "N/A" for all fields except validity.lyrics_ok and validity.notes, and explain the issue in validity.notes.
 
 ANALYTICAL PHILOSOPHY
 
@@ -148,6 +152,8 @@ NO MARKDOWN OR CODE FENCES.
 NO COMMENTS OR TRAILING COMMAS.
 OUTPUT JSON ONLY.
 ENSURE THAT ALL BRACKETS UTILIZED MATCH THE SCHEMA EXACTLY. ENSURE THAT THERE ARE NONE MISSING OR EXTRA.
+If lyrics aren't really lyrics at all but some other kind of text (e.g., a recipe, a news article, etc.), treat as invalid and explain in validity.notes. You can return "N/A" for all fields except validity.lyrics_ok and validity.notes, and explain the issue in validity.notes. [this does not apply to poems or other artistic texts that might be analyzed as lyrics, as long as they have a poetic or lyrical quality and aren't just straightforward prose.]
+If lyrics don't have a great basis for meaning, don't try and force meaning. If it's obvious the lyrics are not meant to be meaningful, you can say that. Do not force an interpretation that you think is weak or unlikely.
 Do not default to treating all statements as literal, surface-level propositions if a stronger symbolic or allusive reading is supported by cumulative textual evidence. The most obvious reading is not always the most insightful.
 Verify that all sentence fragments are direct substrings from the lyrics. Do not alter them or add commentary to the sentence fragments.
 Before outputting, verify: valid JSON, no duplicate keys, all enums valid, stage count 2–4, motifs 3–5, highlights 3–4, evidence fragments ≤15 words, no extra text.

@@ -130,14 +130,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    background-color: #0b0c10;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
   }
 }
 
 html {
   scrollbar-width: none;     /* Firefox */
   -ms-overflow-style: none;  /* IE/old Edge */
+  overscroll-behavior: none;
 }
 html::-webkit-scrollbar {
   width: 0;
