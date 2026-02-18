@@ -36,10 +36,7 @@ export default function HowItWorksPage() {
   const [flashDeepSeek, setFlashDeepSeek] = useState(false);
 
   const scrollToSection = (id) => {
-    console.log("why_choose_lyra ref:", refs.current.why_choose_lyra);
-    console.log("why_choose_lyra by id:", document.getElementById("why_choose_lyra"));
-
-    const el = document.getElementById(id);
+    const el = refs.current[id] || document.getElementById(id);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -509,9 +506,6 @@ function NavLink({ label, id, active, onClick }) {
 
 function Section({ title, eyebrow, children, id, setRef }) {
   useEffect(() => {
-    if (id === "why_choose_lyra") {
-      console.log("Section why_choose_lyra mounted");
-    }
   }, [id]);
   
   return (
