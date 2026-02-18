@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useTransition } from "../components/transition";
@@ -142,6 +143,7 @@ export default function AnalyzePage() {
       if (activeRequestIdRef.current !== requestId) return;
 
       const data = await res.json().catch(() => null);
+      console.log("API RESPONSE:", JSON.stringify(data, null, 2));
 
       if (!res.ok) {
         if (res.status === 499 || data?.code === "CANCELED") return;
@@ -203,11 +205,15 @@ export default function AnalyzePage() {
         <h1 className="text-4xl font-semibold tracking-tight text-white">
           Analyze
         </h1>
-        <p className="mt-3 text-sm leading-6 text-neutral-400">
+       <p className="mt-3 text-sm leading-6 text-neutral-400">
           Paste lyrics below. We won’t store anything, promise.
-          <span className="text-neutral-500">
-            {" "}
-          </span>
+          <Link
+            href="/how-it-works?from=privacyAsterisk#privacy"
+            className="ml-1 align-super text-xs font-bold bg-linear-to-r from-lyra-purple to-lyra-pink bg-clip-text text-transparent"
+            aria-label="Read about privacy"
+          >
+            *
+          </Link>
         </p>
 
         <label className="mt-7 block text-xs font-semibold uppercase tracking-[0.15em] text-white/70">
@@ -218,6 +224,12 @@ export default function AnalyzePage() {
           <textarea
             value={lyrics}
             onChange={(e) => setLyrics(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                onAnalyze();
+              }
+            }}
             placeholder="Paste lyrics here…"
             rows={9}
             className={cx(
@@ -272,6 +284,12 @@ export default function AnalyzePage() {
         <input
           value={artist}
           onChange={(e) => setArtist(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onAnalyze();
+            }
+          }}
           placeholder="Artist name"
           className={cx(
             "mt-2 w-full rounded-2xl",
@@ -477,7 +495,7 @@ export default function AnalyzePage() {
                         : ""}
                     </p>
 
-                    {(result?.mood_arc?.stages || []).length > 0 ? (
+                    {Array.isArray(result?.mood_arc?.stages) && result.mood_arc.stages.length > 0 ? (
                       <div className="mt-4 flex flex-wrap items-center gap-2">
                         {result.mood_arc.stages.map((s, idx) => (
                           <span
@@ -496,7 +514,7 @@ export default function AnalyzePage() {
                     )}
                   </div>
 
-                  {(result?.mood_arc?.stages || []).length > 0 ? (
+                  {Array.isArray(result?.mood_arc?.stages) && result.mood_arc.stages.length > 0 ? (
                     <ol className="mt-5 space-y-4">
                       {result.mood_arc.stages.map((s, idx) => (
                         <li
@@ -524,19 +542,21 @@ export default function AnalyzePage() {
                   delay={0.05}
                 >
                   <div className="flex flex-wrap gap-2">
-                    {(result?.key_motifs || []).map((m, idx) => (
-                      <span
-                        key={idx}
-                        className="group relative rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/70 transition hover:bg-white/10"
-                        title={m.role}
-                      >
-                        {m.motif}
-                        <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
-                      </span>
-                    ))}
+                    {Array.isArray(result?.key_motifs) ? (
+                      result.key_motifs.map((m, idx) => (
+                        <span
+                          key={idx}
+                          className="group relative rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs text-white/70 transition hover:bg-white/10"
+                          title={m.role}
+                        >
+                          {m.motif}
+                          <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
+                        </span>
+                      ))
+                    ) : null}
                   </div>
 
-                  {(result?.key_motifs || []).length > 0 ? (
+                  {Array.isArray(result?.key_motifs) && result.key_motifs.length > 0 ? (
                     <div className="mt-6 space-y-4">
                       {result.key_motifs.map((m, idx) => (
                         <div
@@ -565,8 +585,9 @@ export default function AnalyzePage() {
                   delay={0.05}
                 >
                   <div className="space-y-6">
-                    {(result?.lyrical_highlights || []).map((h, idx) => (
-                      <div
+                    {Array.isArray(result?.lyrical_highlights) ? (
+                      result.lyrical_highlights.map((h, idx) => (
+                        <div
                         key={idx}
                         className="rounded-2xl border border-white/10 bg-black/20 px-6 py-5"
                       >
@@ -584,7 +605,8 @@ export default function AnalyzePage() {
                           {h.insight}
                         </p>
                       </div>
-                    ))}
+                      ))
+                    ) : null}
                   </div>
                 </SpotlightSection>
 
@@ -608,24 +630,28 @@ export default function AnalyzePage() {
 
                 <SpotlightSection eyebrow="Tags" delay={0.05}>
                   <div className="flex flex-wrap gap-2">
-                    {(result?.ui_optimized?.tone_tags || []).map((t) => (
-                      <span
-                        key={`tone-${t}`}
-                        className="group relative rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 transition hover:bg-white/10"
-                      >
-                        {t}
-                        <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
-                      </span>
-                    ))}
-                    {(result?.ui_optimized?.theme_tags || []).map((t) => (
-                      <span
-                        key={`theme-${t}`}
-                        className="group relative rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 transition hover:bg-white/10"
-                      >
-                        {t}
-                        <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
-                      </span>
-                    ))}
+                    {Array.isArray(result?.ui_optimized?.tone_tags) ? (
+                      result.ui_optimized.tone_tags.map((t) => (
+                        <span
+                          key={`tone-${t}`}
+                          className="group relative rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 transition hover:bg-white/10"
+                        >
+                          {t}
+                          <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
+                        </span>
+                      ))
+                    ) : null}
+                    {Array.isArray(result?.ui_optimized?.theme_tags) ? (
+                      result.ui_optimized.theme_tags.map((t) => (
+                        <span
+                          key={`theme-${t}`}
+                          className="group relative rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/65 transition hover:bg-white/10"
+                        >
+                          {t}
+                          <span className="pointer-events-none absolute inset-0 rounded-full opacity-0 shadow-[0_0_24px_rgba(184,87,246,0.25)] transition group-hover:opacity-100" />
+                        </span>
+                      ))
+                    ) : null}
                   </div>
 
                   <p className="mt-4 text-xs text-white/40">

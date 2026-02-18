@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 
+const SECTION_IDS = ["overview", "pipeline", "sections", "privacy", "why_choose_lyra", "faq"];
+
 export default function HowItWorksPage() {
   const steps = [
     {
@@ -28,22 +30,47 @@ export default function HowItWorksPage() {
     },
   ];
 
-  const sectionIds = ["overview", "pipeline", "sections", "privacy", "faq"];
   const refs = useRef({});
   const [active, setActive] = useState("overview");
   const [bgActive, setBgActive] = useState(false);
+  const [flashDeepSeek, setFlashDeepSeek] = useState(false);
 
   const scrollToSection = (id) => {
-    const el = refs.current[id];
+    console.log("why_choose_lyra ref:", refs.current.why_choose_lyra);
+    console.log("why_choose_lyra by id:", document.getElementById("why_choose_lyra"));
+
+    const el = document.getElementById(id);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   useEffect(() => {
+  // only flash when coming from the asterisk
+  const params = new URLSearchParams(window.location.search);
+  const fromAsterisk = params.get("from") === "privacyAsterisk";
+  const hashId = window.location.hash?.slice(1);
+
+  if (!fromAsterisk || hashId !== "privacy") return;
+
+  // wait a tick so layout settles, then flash
+  const t1 = setTimeout(() => {
+    setFlashDeepSeek(true);
+
+    // update URL to remove query and asterisk while keeping the hash
+    window.history.replaceState({}, "", "/how-it-works#privacy");
+
+    const t2 = setTimeout(() => setFlashDeepSeek(false), 2000);
+    return () => clearTimeout(t2);
+  }, 450);
+
+  return () => clearTimeout(t1);
+}, []);
+
+  useEffect(() => {
     const onScroll = () => {
-      const entries = sectionIds
+      const entries = SECTION_IDS
         .map((id) => {
-          const el = refs.current[id];
+          const el = refs.current[id] || document.getElementById(id);
           if (!el) return null;
           const r = el.getBoundingClientRect();
           const score = Math.abs(r.top - window.innerHeight * 0.22);
@@ -141,6 +168,12 @@ export default function HowItWorksPage() {
                 onClick={() => scrollToSection("privacy")}
               />
               <NavLink
+                label="Why Lyra?"
+                id="why_choose_lyra"
+                active={active}
+                onClick={() => scrollToSection("why_choose_lyra")}
+              />
+              <NavLink
                 label="FAQ"
                 id="faq"
                 active={active}
@@ -155,6 +188,7 @@ export default function HowItWorksPage() {
               ["Pipeline", "pipeline"],
               ["Sections", "sections"],
               ["Privacy", "privacy"],
+              ["Why Lyra?", "why_choose_lyra"],
               ["FAQ", "faq"],
             ].map(([label, id]) => (
               <button
@@ -253,15 +287,43 @@ export default function HowItWorksPage() {
                 </p>
                 <p>
                   <span className="font-semibold text-white/85">Interpretation:</span>{" "}
-                  results are a lens, not a definitive meaning.
+                  Results are a lens, not a definitive meaning.
                 </p>
                 <p>
                   <span className="font-semibold text-white/85">Privacy:</span>{" "}
-                  The API used is DeepSeek, and they state that they do not store or use any content sent.
+                  <span
+                    className={[
+                      "rounded-md px-1 transition",
+                      flashDeepSeek
+                        ? "bg-yellow-400/20 ring-1 ring-yellow-300/40"
+                        : ""
+                    ].join(" ")}
+                  >
+                    We use DeepSeek's API to analyze, so be cautious putting in sensitive information to Lyra.
+                  </span>
                 </p>
                 <p>
                   <span className="font-semibold text-white/85">Storage:</span>{" "}
                   We don’t store lyrics or analyses. Everything is processed in-memory and discarded after.
+                </p>
+              </div>
+            </Section>
+
+            <Section
+              setRef={(el) => (refs.current.why_choose_lyra = el)}
+              title="Why Lyra?"
+              id="why_choose_lyra"
+              eyebrow="The vision"
+            >
+              <div className="mt-6 space-y-4">
+                <p className="text-sm leading-6 text-white/75">
+                  Most lyric analysis online is either surface-level or buried in confusing language. Lyra was made to provide insightful and emotional analyses of songs in a way that’s accessible to anyone who loves music.
+                </p>
+                <p className="text-sm leading-6 text-white/75">
+                  <span className="font-semibold text-white/85">Inspiration:</span> I've always been infatuated with the undertones of academic and prose writing, and I think music has the same idea a lot of the time. I made Lyra to help myself and others find those undertones more easily.
+                </p>
+                <p className="text-sm leading-6 text-white/75">
+                  <span className="font-semibold text-white/85">My Passion:</span> Lyra was largely a passion project that became something I was really proud of. Part of the reason that music is so special is because of the different meanings you can always find and resonate with, and I hope Lyra helps others find those like it helps me.
                 </p>
               </div>
             </Section>
@@ -446,6 +508,12 @@ function NavLink({ label, id, active, onClick }) {
 }
 
 function Section({ title, eyebrow, children, id, setRef }) {
+  useEffect(() => {
+    if (id === "why_choose_lyra") {
+      console.log("Section why_choose_lyra mounted");
+    }
+  }, [id]);
+  
   return (
     <motion.section
       id={id}
@@ -635,7 +703,7 @@ function SuggestionBubble() {
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.5 }}
           onClick={() => setOpen(true)}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-lyra-purple/30 to-lyra-pink/20 shadow-lg backdrop-blur-xl transition hover:border-white/40 hover:from-lyra-purple/40 hover:to-lyra-pink/30"
+          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-linear-to-br from-lyra-purple/30 to-lyra-pink/20 shadow-lg backdrop-blur-xl transition hover:border-white/40 hover:from-lyra-purple/40 hover:to-lyra-pink/30"
           aria-label="Open suggestion form"
         >
           <svg
@@ -658,7 +726,7 @@ function SuggestionBubble() {
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.8, opacity: 0, y: 20 }}
           transition={{ duration: 0.3 }}
-          className="w-80 rounded-[20px] border border-white/10 bg-white/6 p-4 backdrop-blur-xl shadow-lg"
+          className="w-80 rounded-4xl border border-white/10 bg-white/6 p-4 backdrop-blur-xl shadow-lg"
         >
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">Send a suggestion</h3>
@@ -694,7 +762,7 @@ function SuggestionBubble() {
               <button
                 type="submit"
                 disabled={isLoading || !suggestion.trim()}
-                className="w-full rounded-lg bg-gradient-to-r from-lyra-purple/80 to-lyra-pink/80 px-3 py-2 text-xs font-semibold text-white transition hover:from-lyra-purple hover:to-lyra-pink disabled:opacity-50"
+                className="w-full rounded-lg bg-linear-to-r from-lyra-purple/80 to-lyra-pink/80 px-3 py-2 text-xs font-semibold text-white transition hover:from-lyra-purple hover:to-lyra-pink disabled:opacity-50"
               >
                 {isLoading ? "Sending…" : "Send"}
               </button>
