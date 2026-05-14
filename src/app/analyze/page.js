@@ -149,6 +149,8 @@ export default function AnalyzePage() {
 
       if (activeRequestIdRef.current !== requestId) return;
 
+      const data = await res.json().catch(() => null);
+
       if (!res.ok) {
         if (res.status === 499 || data?.code === "CANCELED") return;
         throw new Error(data?.message || "Analysis failed.");
@@ -189,6 +191,7 @@ export default function AnalyzePage() {
 
     try {
       const res = await fetch("/api/test-lyrics", { method: "GET" });
+
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
