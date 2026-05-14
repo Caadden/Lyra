@@ -44,6 +44,21 @@ export default function AnalyzePage() {
     };
   }, [pageReady]);
 
+  useEffect(() => {
+    if (status !== "loading") return;
+
+    // small delay to ensure render
+    const timer = setTimeout(() => {
+      const el = resultsRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const target = window.scrollY + rect.top - (window.innerHeight - rect.height) / 2;
+      window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
+    }, 0);
+
+    return () => clearTimeout(timer);
+  }, [status]);
+
   const charCount = lyrics.length;
   const tooLong = charCount > 8000;
   const canAnalyze =
@@ -73,9 +88,9 @@ export default function AnalyzePage() {
     setEtaMode("idle");
   };
 
-  const startEta = () => {
+  const startEta = (count = charCount) => {
     // simple ETA
-    const total = charCount < 5000 ? 30 : 40;
+    const total = count < 5000 ? 30 : 40;
 
     setEtaTotal(total);
     setEtaLeft(total);
@@ -106,8 +121,8 @@ export default function AnalyzePage() {
     return Math.min(95, Math.max(0, raw));
   })();
 
-  const onAnalyze = async () => {
-    if (!canAnalyze) return;
+  const runAnalysis = async (lyricsValue, artistValue) => {
+    if (!lyricsValue.trim().length || lyricsValue.length > 8000 || status === "loading") return;
 
     abortRef.current?.abort();
 
@@ -122,28 +137,17 @@ export default function AnalyzePage() {
     setResult(null);
     setBgActive(false);
     setTypingStart(false);
-    startEta();
-
-    requestAnimationFrame(() => {
-      const el = resultsRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const target = window.scrollY + rect.top - (window.innerHeight - rect.height) / 2;
-      window.scrollTo({ top: Math.max(0, target), behavior: "smooth" });
-    });
+    startEta(lyricsValue.length);
 
     try {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lyrics, artist }),
+        body: JSON.stringify({ lyrics: lyricsValue, artist: artistValue }),
         signal: controller.signal,
       });
 
       if (activeRequestIdRef.current !== requestId) return;
-
-      const data = await res.json().catch(() => null);
-      console.log("API RESPONSE:", JSON.stringify(data, null, 2));
 
       if (!res.ok) {
         if (res.status === 499 || data?.code === "CANCELED") return;
@@ -172,6 +176,37 @@ export default function AnalyzePage() {
     } finally {
       if (activeRequestIdRef.current === requestId) stopEta();
       if (abortRef.current === controller) abortRef.current = null;
+    }
+  };
+
+  const onAnalyze = async () => {
+    if (!canAnalyze) return;
+    await runAnalysis(lyrics, artist);
+  };
+
+  const onTestRun = async () => {
+    if (status === "loading") return;
+
+    try {
+      const res = await fetch("/api/test-lyrics", { method: "GET" });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Could not load test lyrics.");
+      }
+
+      const testLyrics = String(data?.lyrics || "").trim();
+      const testArtist = "";
+
+      if (!testLyrics) {
+        throw new Error("TEST_LYRICS is empty.");
+      }
+
+      setLyrics("Test Lyrics");
+      setArtist("Hozier");
+      await runAnalysis(testLyrics, testArtist);
+    } catch (e) {
+      console.error("Test run error:", e);
     }
   };
 
@@ -205,16 +240,37 @@ export default function AnalyzePage() {
         <h1 className="text-4xl font-semibold tracking-tight text-white">
           Analyze
         </h1>
-       <p className="mt-3 text-sm leading-6 text-neutral-400">
-          Paste lyrics below. We won’t store anything, promise.
-          <Link
-            href="/how-it-works?from=privacyAsterisk#privacy"
-            className="ml-1 align-super text-xs font-bold bg-linear-to-r from-lyra-purple to-lyra-pink bg-clip-text text-transparent"
-            aria-label="Read about privacy"
+        <div className="mt-3 flex flex-col">
+          <p className="text-sm leading-6 text-neutral-400">
+            Paste lyrics below. We won’t store anything, promise.
+            <Link
+              href="/how-it-works?from=privacyAsterisk#privacy"
+              className="ml-1 align-super text-xs font-bold bg-linear-to-r from-lyra-purple to-lyra-pink bg-clip-text text-transparent"
+              aria-label="Read about privacy"
+            >
+              *
+            </Link>
+          </p>
+
+          <button
+            type="button"
+            onClick={onTestRun}
+            disabled={status === "loading"}
+            className={cx(
+              "group self-start text-xs transition",
+              status === "loading"
+                ? "cursor-not-allowed text-neutral-500"
+                : "cursor-pointer bg-linear-to-r from-lyra-purple to-lyra-pink bg-clip-text text-transparent opacity-90 hover:opacity-100"
+            )}
           >
-            *
-          </Link>
-        </p>
+            <span className="relative inline-block">
+              Want a test run? Click me!
+              {status !== "loading" && (
+                <span className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-linear-to-r from-lyra-purple to-lyra-pink" />
+              )}
+            </span>
+          </button>
+        </div>
 
         <label className="mt-7 block text-xs font-semibold uppercase tracking-[0.15em] text-white/70">
         Lyrics
@@ -235,7 +291,7 @@ export default function AnalyzePage() {
             className={cx(
               "w-full resize-y rounded-3xl",
               "border border-white/10 bg-white/6 text-white",
-              "px-5 py-4 text-sm leading-6",
+              "px-5 py-4 text-base leading-6",
               "placeholder:text-white/35",
               "shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_18px_60px_rgba(0,0,0,0.55)]",
               "backdrop-blur-xl",
@@ -294,7 +350,7 @@ export default function AnalyzePage() {
           className={cx(
             "mt-2 w-full rounded-2xl",
             "border border-white/10 bg-white/6 text-white",
-            "px-5 py-3 text-sm",
+            "px-5 py-3 text-base",
             "placeholder:text-white/35",
             "shadow-[0_0_0_1px_rgba(255,255,255,0.03),0_12px_40px_rgba(0,0,0,0.45)]",
             "backdrop-blur-xl",
@@ -306,15 +362,16 @@ export default function AnalyzePage() {
 
         <button
           onClick={onAnalyze}
-          disabled={!canAnalyze}
+          disabled={!isMounted || !canAnalyze}
+          suppressHydrationWarning
           className={[
             "mt-6 inline-flex items-center justify-center rounded-full border px-5 py-3 text-sm font-semibold",
-            canAnalyze
-              ? "border-transparent bg-linear-to-tr from-lyra-purple to-lyra-pink text-white hover:opacity-90 active:scale-[0.99]"
+            isMounted && canAnalyze
+              ? "cursor-pointer border-transparent bg-linear-to-r from-lyra-purple to-lyra-pink text-white hover:opacity-90 active:scale-[0.99]"
               : "cursor-not-allowed border-neutral-700 bg-neutral-800 text-neutral-500",
           ].join(" ")}
         >
-          {status === "loading" ? "Analyzing…" : "Analyze"}
+          {isMounted && status === "loading" ? "Analyzing…" : "Analyze"}
         </button>
       </section>
     </main>

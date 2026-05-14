@@ -39,10 +39,6 @@ ANALYTICAL PHILOSOPHY
 Text-First Principle: All analysis must originate from the provided lyrics. Every interpretive claim must be grounded in direct textual evidence. This evidence includes not only literal statements but also recurring symbols, allusions, grammatical structures, and patterns of diction. Crucially, treat the text as a message crafted in and for a real world. When lyrics employ a specialized lexicon, interrogate its purpose: is it primarily building an internal metaphor, or is it leveraging shared cultural concepts to articulate a specific social, relational, or identity-based conflict? The most compelling interpretation often explains why this specific language is the necessary vehicle for this specific human experience.
 Thesis-Driven: Construct a compelling, specific, and arguable central thesis. Do not summarize. Avoid vague, generic summaries of emotion or internal conflict. Actively avoid defaulting to the most abstract or psychologically universal reading if the textual clues point toward a more concrete, culturally-situated tension. A strong thesis often synthesizes textual elements to make a bold claim about a precise facet of human experience, which may include themes of identity, power, societal pressure, or belonging.
 
-Context as Lens, Not Crutch:
-If artist is valid, use internal knowledge only to sharpen interpretation of the lyrics. Avoid biography dumps.
-If artist is invalid, perform a purely text-internal analysis.
-
 Concise Evidence:
 Evidence fragments must be exact substrings from the provided lyrics, limited to 15 words or fewer. Never reproduce long passages.
 If you use two separate fragments to illustrate a point, split them with a slash (/). DO NOT INPUT ELLPISES THAT DO NOT EXIST.
@@ -65,7 +61,7 @@ NO LEADING OR TRAILING TEXT: The response must begin with { and end with }.
     "notes": string
   },
   "metadata": {
-    "artist_display": string,
+    "artist_display": string
   },
   "core_insight": {
     "thesis": string,
@@ -138,7 +134,10 @@ role: Explain how the motif advances the thesis.
 Each highlight must identify a specific craft device, quote an exact fragment, and explain how the device produces meaning.
 
 6. Context Note
-is_applicable: true only if artist is valid AND contextual knowledge meaningfully sharpens interpretation. This is particularly applicable when an artist's known thematic preoccupations provide a clarifying framework for the specific symbols and conflicts present in the text.
+Context as Lens, Not Crutch:
+  If artist is valid, draw on whatever knowledge you have about the artist's known themes, identity, or catalog, but only where you have reasonable confidence. If your knowledge of the artist is limited or uncertain, treat artist as a soft signal rather than a reliable source, and reflect that uncertainty in whether is_applicable is true.
+  If artist is invalid, perform a purely text-internal analysis.
+is_applicable: is_applicable should only be true if you can identify a specific, non-obvious connection between the artist's known identity or catalog and a concrete textual element. If the connection would apply equally to any artist in the same genre, it is not specific enough.
 insight: One sentence connecting artist identity to the textual reading.
 
 7. Takeaway
@@ -368,6 +367,9 @@ export async function POST(request) {
       word_count,
       artist_display,
     };
+
+    // Log context note to terminal
+    console.log("Context Note:", JSON.stringify(parsed.context_note, null, 2));
 
     return NextResponse.json(parsed);
   } catch (error) {
