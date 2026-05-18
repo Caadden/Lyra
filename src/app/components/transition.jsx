@@ -17,53 +17,41 @@ export function TransitionProvider({ children }) {
       holdMs = 40,
       inMs = 140,
     } = {}) => {
-      if (busy) return;
-
-      setBusy(true);
-      setPhase("out");
-
-      // blur/fade
-      await new Promise((r) => setTimeout(r, outMs + holdMs));
-
-      // navigate
-      if (to) router.push(to);
-
-      // stay blurred while loading
-      setPhase("loading");
-
-      // wait for render, then transition in
-      await new Promise((r) => setTimeout(r, inMs));
-      setPhase("in");
-    };
-
+      setBusy((currentBusy) => {
+        if (currentBusy) return currentBusy;
+        return true;
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    setPhase("out");
+    await new Promise((r) => setTimeout(r, outMs + holdMs));
+    if (to) router.push(to);
+    setPhase("loading");
+    await new Promise((r) => setTimeout(r, inMs));
+    setPhase("in");
+  };
     const pageReady = () => {
       setTimeout(() => {
         setPhase("idle");
         setBusy(false);
-      }, 100); // 100ms delay after page is ready
+      }, 100); // 100ms delay
     };
-
     const transitionTo = (to, opts = {}) => transition({ to, ...opts });
-
-    return { transition, transitionTo, busy, pageReady };
+    return { transition, transitionTo, pageReady };
   }, [router]);
 
   return (
-    <TransitionCtx.Provider value={api}>
+    <TransitionCtx.Provider value={{...api, busy }}>
       {/* wrap page content for blur */}
       <div
         style={{
-          filter:
-            phase === "out" || phase === "loading" ? "blur(10px)" : "none",
-          opacity: phase === "out" || phase === "loading" ? 0.82 : 1,
-          transform: phase === "out" || phase === "loading" ? "scale(0.995)" : "scale(1)",
+          opacity: phase === "out" || phase === "loading" ? 0.8 : 1,
           transition:
             phase === "out"
-              ? "filter 160ms ease, opacity 160ms ease, transform 160ms ease"
+              ? "opacity 160ms ease"
               : phase === "loading"
               ? "none"
-              : "filter 140ms ease, opacity 140ms ease, transform 140ms ease",
-          willChange: phase === "idle" ? "auto" : "filter, opacity, transform",
+              : "opacity 140ms ease",
+          willChange: phase === "idle" ? "auto" : "opacity",
         }}
       >
         {children}
@@ -75,7 +63,7 @@ export function TransitionProvider({ children }) {
           opacity: phase === "out" ? 1 : 0,
           transition: "opacity 160ms ease",
           background:
-            "radial-gradient(80% 60% at 50% 45%, rgba(184,87,246,0.18), rgba(247,130,208,0.10), rgba(0,0,0,0.45))",
+            "radial-gradient(80% 60% at 50% 45%, rgba(184,87,246,0.25), rgba(247,130,208,0.15), rgba(0,0,0,0.75))",
         }}
       />
     </TransitionCtx.Provider>

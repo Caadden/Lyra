@@ -368,9 +368,6 @@ export async function POST(request) {
       artist_display,
     };
 
-    // Log context note to terminal
-    console.log("Context Note:", JSON.stringify(parsed.context_note, null, 2));
-
     return NextResponse.json(parsed);
   } catch (error) {
   console.error("Analysis error:", error);
@@ -382,6 +379,19 @@ export async function POST(request) {
   return NextResponse.json(
     { message: "Canceled.", code: "CANCELED" },
     { status: 499 } // client closed Request
+    );
+  }
+
+  if (
+    status === 403 ||
+    /blocked|forbidden|rate limit|too many requests/i.test(msg)
+  ) {
+    return NextResponse.json(
+      {
+        message: "Too many requests: please wait one minute and try again.",
+        code: "RATE_LIMITED_VERCEL",
+      },
+      { status: 403 }
     );
   }
 
@@ -407,7 +417,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         message: "Rate limited. Please wait a moment and try again.",
-        code: "RATE_LIMITED",
+        code: "RATE_LIMITED_UPSTREAM",
       },
       { status: 429 }
     );
@@ -418,18 +428,18 @@ export async function POST(request) {
     return NextResponse.json(
       {
         message:
-          "Invalid API key. (THIS IS A DEV ERROR; contact the developer.)",
+          "(401) Invalid API key. (THIS IS A DEV ERROR; contact the developer.)",
         code: "INVALID_API_KEY",
       },
       { status: 502 }
     );
   }
 
-  if (status === 403 || /forbidden|permission/i.test(msg)) {
+  if (/forbidden|permission/i.test(msg)) {
     return NextResponse.json(
       {
         message:
-          "API key lacks permission. (THIS IS A DEV ERROR; contact the developer.)",
+          "(403) API key lacks permission. (THIS IS A DEV ERROR; contact the developer.)",
         code: "FORBIDDEN",
       },
       { status: 502 }
@@ -444,7 +454,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         message:
-          "Invalid model name. (THIS IS A DEV ERROR; contact the developer.)",
+          "(400) Invalid model name. (THIS IS A DEV ERROR; contact the developer.)",
         code: "INVALID_MODEL",
         detail: msg,
       },
@@ -456,7 +466,7 @@ export async function POST(request) {
   if (status === 502 || status === 504) {
     return NextResponse.json(
       {
-        message: "Upstream provider error. Please try again.",
+        message: "Upstream provider error. Please analyze again.",
         code: "UPSTREAM_ERROR",
       },
       { status: 502 }

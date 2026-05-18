@@ -27,11 +27,9 @@ export async function POST(req) {
       html: `
         <h2>New Suggestion</h2>
         <p>${suggestion.split("\n").join("<br>")}</p>
-        <p style="color: #666; font-size: 12px;">Sent at ${new Date().toLocaleString()}</p>
+        <p style="color: #660; font-size: 12px;">Sent at ${new Date().toLocaleString()}</p>
       `,
     });
-
-    console.log("[Lyra] Suggestion sent via email:", suggestion);
 
     return new Response(
       JSON.stringify({ success: true, message: "Suggestion sent" }),

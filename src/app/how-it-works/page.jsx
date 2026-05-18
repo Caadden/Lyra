@@ -3,8 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
+import AnimatedBackground from "../components/AnimatedBackground";
 
 const SECTION_IDS = ["overview", "pipeline", "sections", "privacy", "why_choose_lyra", "faq"];
+
+const sectionVariants = {
+  hidden: { opacity: 0, y: 18 },
+  visible: { opacity: 1, y: 0 },
+};
 
 export default function HowItWorksPage() {
   const steps = [
@@ -93,17 +99,15 @@ export default function HowItWorksPage() {
           "linear-gradient(to bottom, #0b0c10 0%, #0b0c10 55%, rgba(66,69,73,0.55) 100%)",
       }}
     >
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <AnimatedBackground active={bgActive} />
-      </div>
+      <AnimatedBackground active={bgActive} />
       <div className="relative z-10 mx-auto w-full max-w-5xl px-6 pt-16 pb-24">
         <a href="/" className="fixed left-6 top-6 z-50 transition hover:opacity-80">
           <img src="/lyra-apple-touch-icon.png" alt="Lyra" className="h-6 w-6 rounded-xl" />
         </a>
         {/* header */}
         <motion.div
-          initial={{ opacity: 0, y: 14, filter: "blur(6px)" }}
-          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
         >
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/35">
@@ -116,20 +120,35 @@ export default function HowItWorksPage() {
             Lyra is a close-reading engine: it generates a thesis-driven interpretation
             of lyrics using the text you provide.
           </p>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70 backdrop-blur">
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <motion.span
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70"
+          >
             <span className="leading-none">emotional quality</span>
-          </span>
-          <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70 backdrop-blur">
+          </motion.span>
+          <motion.span
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.35 }}
+            className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70"
+          >
             evidence-anchored
-          </span>
-          <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70 backdrop-blur">
+          </motion.span>
+          <motion.span
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs text-white/70"
+          >
             expressive reveal
-          </span>
+          </motion.span>
         </div>
 
         <div
-          className="pointer-events-none mt-8 h-24 w-full rounded-[32px] blur-2xl"
+          className="pointer-events-none mt-15 h-24 w-full rounded-[32px] blur-2xl"
           style={{
             background:
               "radial-gradient(circle at 20% 40%, rgba(184,87,246,0.22), transparent 55%), radial-gradient(circle at 55% 20%, rgba(247,130,208,0.18), transparent 55%), radial-gradient(circle at 85% 60%, rgba(141,165,243,0.16), transparent 55%)",
@@ -399,9 +418,9 @@ function MiniDemo({ onDone }) {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
+      initial={{ opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
       viewport={{ once: true, margin: "-14% 0px -12% 0px" }}
       className="relative rounded-[28px] p-px"
       style={{
@@ -409,7 +428,7 @@ function MiniDemo({ onDone }) {
           "linear-gradient(135deg, rgba(184,87,246,0.22), rgba(247,130,208,0.10), rgba(141,165,243,0.08))",
       }}
     >
-      <div className="rounded-[27px] border border-white/10 bg-white/4 p-6 backdrop-blur-xl">
+      <div className="rounded-[27px] border border-white/10 p-6" style={{ background: "rgba(255,255,255,0.03)" }}>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
             Demo
           </p>
@@ -505,24 +524,22 @@ function NavLink({ label, id, active, onClick }) {
 }
 
 function Section({ title, eyebrow, children, id, setRef }) {
-  useEffect(() => {
-  }, [id]);
-  
   return (
     <motion.section
       id={id}
       ref={setRef}
-      initial={{ opacity: 0, y: 18, filter: "blur(6px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-      transition={{ duration: 0.7, ease: [0.2, 0.8, 0.2, 1] }}
+      variants={sectionVariants}
+      initial="hidden"
+      whileInView="visible"
+      transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
       viewport={{ once: true, margin: "-14% 0px -12% 0px" }}
       className="relative rounded-[28px] p-px"
       style={{
         background:
-          "linear-gradient(135deg, rgba(184,87,246,0.22), rgba(247,130,208,0.10), rgba(141,165,243,0.08))",
+          "linear-gradient(135deg, rgba(184,87,246,0.20), rgba(247,130,208,0.10), rgba(141,165,243,0.08))",
       }}
     >
-      <div className="rounded-[27px] border border-white/10 bg-white/4 p-6 backdrop-blur-xl">
+      <div className="rounded-[27px] border border-white/10 p-6" style={{ background: "rgba(255,255,255,0.03)" }}>
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
           {eyebrow}
         </p>
@@ -551,104 +568,6 @@ function FAQ({ q, a }) {
   );
 }
 
-function AnimatedBackground({ active }) {
-  const ref = useRef(null);
-
-  useEffect(() => {
-    if (!active) return;
-    const el = ref.current;
-    if (!el) return;
-
-    let raf = null;
-    let mx = 0, my = 0;
-    let x = 0, y = 0;
-
-    const onMove = (e) => {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      mx = (e.clientX / w - 0.5) * 55;
-      my = (e.clientY / h - 0.5) * 45;
-    };
-
-    const tick = () => {
-      x += (mx - x) * 0.08;
-      y += (my - y) * 0.08;
-      el.style.setProperty("--mx", `${x}px`);
-      el.style.setProperty("--my", `${y}px`);
-      raf = requestAnimationFrame(tick);
-    };
-
-    window.addEventListener("mousemove", onMove, { passive: true });
-    raf = requestAnimationFrame(tick);
-
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, [active]);
-
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      {/* vignette */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0)_35%,rgba(0,0,0,0.72)_100%)]" />
-
-      {/* rotating wash */}
-      <div
-        className={cx(
-          "absolute -inset-40 opacity-0 transition-opacity duration-700",
-          active && "opacity-100"
-        )}
-      >
-        <div className="absolute inset-0 animate-[lyraSpin_40s_linear_infinite] blur-2xl"
-          style={{
-            background:
-              "conic-gradient(from 180deg, rgba(184,87,246,0.10), rgba(247,130,208,0.08), rgba(141,165,243,0.08), rgba(184,87,246,0.10))",
-          }}
-        />
-      </div>
-
-      {/* blobs + parallax */}
-      <div
-        ref={ref}
-        className={cx(
-          "absolute -inset-24 opacity-0 transition-opacity duration-700",
-          active && "opacity-100"
-        )}
-        style={{
-          transform: active
-            ? "translate3d(var(--mx, 0px), var(--my, 0px), 0)"
-            : "translate3d(0,0,0)",
-        }}
-      >
-        <div className="absolute left-[10%] top-[14%] h-140 w-140 rounded-full bg-[radial-gradient(circle_at_center,rgba(184,87,246,0.24)_0%,rgba(184,87,246,0)_65%)] blur-3xl animate-[lyraFloatA_18s_ease-in-out_infinite]" />
-        <div className="absolute right-[8%] top-[30%] h-135 w-135 rounded-full bg-[radial-gradient(circle_at_center,rgba(247,130,208,0.20)_0%,rgba(247,130,208,0)_65%)] blur-3xl animate-[lyraFloatB_22s_ease-in-out_infinite]" />
-        <div className="absolute left-[32%] bottom-[8%] h-160 w-160 rounded-full bg-[radial-gradient(circle_at_center,rgba(141,165,243,0.16)_0%,rgba(141,165,243,0)_70%)] blur-3xl animate-[lyraFloatC_26s_ease-in-out_infinite]" />
-      </div>
-
-      <style jsx>{`
-        @keyframes lyraSpin {
-          0% { transform: rotate(0deg) scale(1); }
-          100% { transform: rotate(360deg) scale(1); }
-        }
-        @keyframes lyraFloatA {
-          0% { transform: translate3d(0px, 0px, 0) scale(1); }
-          50% { transform: translate3d(18px, -14px, 0) scale(1.04); }
-          100% { transform: translate3d(0px, 0px, 0) scale(1); }
-        }
-        @keyframes lyraFloatB {
-          0% { transform: translate3d(0px, 0px, 0) scale(1); }
-          50% { transform: translate3d(-14px, 16px, 0) scale(1.03); }
-          100% { transform: translate3d(0px, 0px, 0) scale(1); }
-        }
-        @keyframes lyraFloatC {
-          0% { transform: translate3d(0px, 0px, 0) scale(1); }
-          50% { transform: translate3d(10px, 10px, 0) scale(1.05); }
-          100% { transform: translate3d(0px, 0px, 0) scale(1); }
-        }
-      `}</style>
-    </div>
-  );
-}
 function SuggestionBubble() {
   const [open, setOpen] = useState(false);
   const [suggestion, setSuggestion] = useState("");
@@ -692,36 +611,28 @@ function SuggestionBubble() {
   const content = (
     <div className="fixed bottom-6 right-6 z-50 pointer-events-auto">
       {!open ? (
-        <motion.button
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.3, delay: 0.5 }}
+        <button
           onClick={() => setOpen(true)}
-          className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-linear-to-br from-lyra-purple/30 to-lyra-pink/20 shadow-lg backdrop-blur-xl transition hover:border-white/40 hover:from-lyra-purple/40 hover:to-lyra-pink/30"
+          className="flex h-14 w-14 items-center justify-center rounded-full border backdrop-blur-xl border-white/20 bg-linear-to-br from-lyra-purple/30 to-lyra-pink/20 shadow-lg transition hover:border-white/40 hover:from-lyra-purple/40 hover:to-lyra-pink/30"
           aria-label="Open suggestion form"
         >
           <svg
-            className="h-5 w-5 text-white/80 mt-1"
+            xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
+            strokeWidth={1.5}
             stroke="currentColor"
+            className="h-5 w-5 text-white/80"
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 8c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm0 2c-2.21 0-4 1.79-4 4v2h8v-2c0-2.21-1.79-4-4-4zm6 5v-1h1v1h-1zm-1 0v-1h1v1h-1zm-6 0v-1h1v1h-1zm-1 0v-1h1v1h-1z"
+              d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z"
             />
           </svg>
-        </motion.button>
+        </button>
       ) : (
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0, y: 20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.8, opacity: 0, y: 20 }}
-          transition={{ duration: 0.3 }}
-          className="w-80 rounded-4xl border border-white/10 bg-white/6 p-4 backdrop-blur-xl shadow-lg"
-        >
+        <div className="w-80 rounded-4xl border border-white/10 bg-white/6 p-4 shadow-lg backdrop-blur-xl">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-white">Send a suggestion</h3>
             <button
@@ -736,14 +647,10 @@ function SuggestionBubble() {
           </div>
 
           {submitted ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center gap-2 py-4"
-            >
+            <div className="flex flex-col items-center gap-2 py-4">
               <div className="text-3xl">✨</div>
               <p className="text-center text-sm text-white/80">Thanks for the feedback!</p>
-            </motion.div>
+            </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-3">
               <textarea
@@ -762,7 +669,7 @@ function SuggestionBubble() {
               </button>
             </form>
           )}
-        </motion.div>
+        </div>
       )}
     </div>
   );
