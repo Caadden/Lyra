@@ -124,8 +124,21 @@ export default function AnalyzePage() {
     return Math.min(95, Math.max(0, raw));
   })();
 
-  const runAnalysis = async (lyricsValue, artistValue) => {
-    if (!lyricsValue.trim().length || lyricsValue.length > 8000 || status === "loading") return;
+  const beginAnalysis = (estimatedCount) => {
+    setShowResults(true);
+    setStatus("loading");
+    setResult(null);
+    setBgActive(false);
+    setTypingStart(false);
+    startEta(estimatedCount);
+  };
+
+  const runAnalysis = async (lyricsValue, artistValue, options = {}) => {
+    if (
+      !lyricsValue.trim().length ||
+      lyricsValue.length > 8000 ||
+      (status === "loading" && !options.allowWhileLoading)
+    ) return;
 
     // Store the actual lyrics/artist being analyzed (for retry purposes)
     lastAnalysisRef.current = { lyrics: lyricsValue, artist: artistValue };
@@ -138,12 +151,9 @@ export default function AnalyzePage() {
     const requestId = ++requestIdRef.current;
     activeRequestIdRef.current = requestId;
 
-    setShowResults(true);
-    setStatus("loading");
-    setResult(null);
-    setBgActive(false);
-    setTypingStart(false);
-    startEta(lyricsValue.length);
+    if (!options.skipBegin) {
+      beginAnalysis(lyricsValue.length);
+    }
 
     try {
       const res = await fetch("/api/analyze", {
@@ -214,6 +224,8 @@ export default function AnalyzePage() {
   const onTestRun = async () => {
     if (status === "loading") return;
 
+    beginAnalysis(500);
+
     try {
       const res = await fetch("/api/test-lyrics", { method: "GET" });
 
@@ -248,9 +260,21 @@ export default function AnalyzePage() {
 
       setLyrics("Test Lyrics");
       setArtist("Hozier");
-      await runAnalysis(testLyrics, testArtist);
+      await runAnalysis(testLyrics, testArtist, { allowWhileLoading: true, skipBegin: true });
     } catch (e) {
-      console.error("Test run error:", e);
+      if (e?.name === "AbortError") return;
+
+      setResult({
+        error: e?.message || "Could not start the test run.",
+        core_insight: { thesis: "", one_line_summary: "", central_conflict: "" },
+        mood_arc: { primary_mood: "", emotional_quality: "", shape: "static", stages: [] },
+        key_motifs: [],
+        lyrical_highlights: [],
+        takeaway: { interpretation: "", universal_hook: "" },
+        ui_optimized: { tone_tags: [], theme_tags: [], complexity_score: 1, color_palette: "neutral" },
+      });
+      setStatus("error");
+      stopEta();
     }
   };
 
