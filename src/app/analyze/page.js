@@ -29,6 +29,7 @@ export default function AnalyzePage() {
 
   const requestIdRef = useRef(0);
   const activeRequestIdRef = useRef(0);
+  const lastAnalysisRef = useRef({ lyrics: "", artist: "" });
 
   useEffect(() => {
     // reset state
@@ -70,6 +71,7 @@ export default function AnalyzePage() {
   abortRef.current = null;
 
   activeRequestIdRef.current = 0;
+  lastAnalysisRef.current = { lyrics: "", artist: "" };
 
   stopEta();
   setStatus("idle");
@@ -125,6 +127,9 @@ export default function AnalyzePage() {
   const runAnalysis = async (lyricsValue, artistValue) => {
     if (!lyricsValue.trim().length || lyricsValue.length > 8000 || status === "loading") return;
 
+    // Store the actual lyrics/artist being analyzed (for retry purposes)
+    lastAnalysisRef.current = { lyrics: lyricsValue, artist: artistValue };
+
     abortRef.current?.abort();
 
     const controller = new AbortController();
@@ -150,11 +155,23 @@ export default function AnalyzePage() {
 
       if (activeRequestIdRef.current !== requestId) return;
 
-      const data = await res.json().catch(() => null);
+      const rawText = await res.text().catch(() => "");
+      const data = rawText
+        ? (() => {
+            try {
+              return JSON.parse(rawText);
+            } catch {
+              return null;
+            }
+          })()
+        : null;
 
       if (!res.ok) {
         if (res.status === 499 || data?.code === "CANCELED") return;
-        throw new Error(data?.message || "Analysis failed.");
+        const fallbackMessage = rawText.trim()
+          ? rawText.trim().slice(0, 240)
+          : `Request failed with status ${res.status}.`;
+        throw new Error(data?.message || fallbackMessage || "Analysis failed.");
       }
 
       if (activeRequestIdRef.current !== requestId) return;
@@ -184,7 +201,10 @@ export default function AnalyzePage() {
 
   const onAnalyze = async () => {
     if (!canAnalyze) return;
-    await runAnalysis(lyrics, artist);
+    // uses temporarily stored values for retries
+    const lyricsToUse = lastAnalysisRef.current.lyrics || lyrics;
+    const artistToUse = lastAnalysisRef.current.artist || artist;
+    await runAnalysis(lyricsToUse, artistToUse);
   };
 
   const onTestRun = async () => {
@@ -193,10 +213,22 @@ export default function AnalyzePage() {
     try {
       const res = await fetch("/api/test-lyrics", { method: "GET" });
 
-      const data = await res.json().catch(() => null);
+      const rawText = await res.text().catch(() => "");
+      const data = rawText
+        ? (() => {
+            try {
+              return JSON.parse(rawText);
+            } catch {
+              return null;
+            }
+          })()
+        : null;
 
       if (!res.ok) {
-        throw new Error(data?.message || "Could not load test lyrics.");
+        const fallbackMessage = rawText.trim()
+          ? rawText.trim().slice(0, 240)
+          : `Could not load test lyrics (status ${res.status}).`;
+        throw new Error(data?.message || fallbackMessage || "Could not load test lyrics.");
       }
 
       const testLyrics = String(data?.lyrics || "").trim();
@@ -286,7 +318,11 @@ export default function AnalyzePage() {
         <div className="relative mt-2">
           <textarea
             value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
+            onChange={(e) => {
+              setLyrics(e.target.value);
+              // clears stored lyrics
+              lastAnalysisRef.current = { lyrics: "", artist: "" };
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -346,7 +382,11 @@ export default function AnalyzePage() {
         </label>
         <input
           value={artist}
-          onChange={(e) => setArtist(e.target.value)}
+          onChange={(e) => {
+            setArtist(e.target.value);
+            // clears stored artist
+            lastAnalysisRef.current = { lyrics: "", artist: "" };
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
