@@ -264,10 +264,13 @@ export default function AnalyzePage() {
               "group self-start text-xs transition",
               status === "loading"
                 ? "cursor-not-allowed text-neutral-500"
-                : "cursor-pointer bg-linear-to-r from-lyra-purple to-lyra-pink bg-clip-text text-transparent opacity-90 hover:opacity-100"
+                : "cursor-pointer opacity-90 hover:opacity-100"
             )}
           >
-            <span className="relative inline-block">
+            <span
+            className="relative inline-block bg-linear-to-r from-lyra-purple to-lyra-pink bg-clip-text text-transparent"
+            style={{ WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+            >
               Want a test run? Click me!
               {status !== "loading" && (
                 <span className="pointer-events-none absolute inset-x-0 -bottom-px h-px bg-linear-to-r from-lyra-purple to-lyra-pink" />

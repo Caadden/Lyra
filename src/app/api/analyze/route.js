@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
+import { transporter } from "../../../lib/mailer";
+import { Redis } from "@upstash/redis";
 
 export const runtime = "nodejs";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
+})
 
 const SYSTEM_PROMPT = `
 SYSTEM PROMPT: LYRIC ANALYSIS ENGINE
@@ -330,6 +337,18 @@ export async function POST(request) {
         },
         { status: 400 }
     );
+    }
+
+    const key = "analyzes:window";
+    const count = await redis.incr(key);
+    if (count === 1) await redis.expire(key, 600);
+    if (count === 20) {
+      await transporter.sendMail({
+        from: process.env.GMAIL_USER,
+        to: process.env.GMAIL_USER,
+        subject: "!! Lyra Traffic Alert !! URGENT",
+        html: `<p>20 analyses in the last 10 minutes. Someone might be spamming.</p>`,
+      });
     }
 
     // first attempt
