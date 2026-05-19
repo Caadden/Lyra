@@ -168,6 +168,10 @@ export default function AnalyzePage() {
 
       if (!res.ok) {
         if (res.status === 499 || data?.code === "CANCELED") return;
+        if (res.status === 403) {
+          throw new Error("Too many requests: please wait one minute and try again.");
+        }
+
         const fallbackMessage = rawText.trim()
           ? rawText.trim().slice(0, 240)
           : `Request failed with status ${res.status}.`;
@@ -225,6 +229,10 @@ export default function AnalyzePage() {
         : null;
 
       if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Too many requests: please wait one minute and try again.");
+        }
+
         const fallbackMessage = rawText.trim()
           ? rawText.trim().slice(0, 240)
           : `Could not load test lyrics (status ${res.status}).`;
