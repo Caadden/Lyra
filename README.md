@@ -4,50 +4,19 @@
 
 A thesis-driven lyric analysis engine.
 
-Lyra is a web application that performs structured, close-reading literary analysis on song lyrics. It generates arguable interpretations grounded in textual evidence, treating lyrics with the same rigor as poetry.
-
 ========================================
 
 **Overview**
 
-Most lyric analysis online is either:
-- Surface-level summaries
-- Overly academic and inaccessible
-- Purely opinion-driven
+I noticed throughout my experiences viewing most lyric analysis online is that they're either surface level, super academic-based, or entirely opinionated.
 
-*Lyra bridges that gap.*
-
-It produces:
-
-- A central thesis
-- Emotional trajectory mapping
-- Recurring motif analysis
-- Highlighted rhetorical devices
-- A universal thematic takeaway
-- A calibrated complexity score
-
-All from raw lyrical input.
+I made Lyra for people who want brief summaries while still understanding motifs and lyrical complexity.
 
 ========================================
 
 **How It Works**
 
-Input Validation
-
-Rejects placeholders and non-lyrical content
-
-Cleans structural markers (e.g., [Chorus], [Verse])
-
-Close Reading Engine
-
-Uses a constrained system prompt
-
-Enforces thesis-first interpretation
-
-Anchors insights in evidence fragments
-
-Structured Output Schema
-
+I made Lyra work by taking in an input of lyrics, getting rid of any placeholder words or things that aren't lyrical, and then it outputs a structured response using DeepSeek's AI API that looks somewhat like the following:
 
 <pre>Returns:
 
@@ -67,46 +36,23 @@ Structured Output Schema
   
 }</pre>
 
-Expressive UI Reveal
-
-Typewriter thesis reveal
-
-Scroll-triggered spotlight sections
-
-Ambient motion background
-
-Dynamic visual polish based on interpretation
-
 ========================================
 
 **Tech Stack**
 
 Frontend
-
 Next.js (App Router)
-
 React
-
 TailwindCSS
-
 Framer Motion
-
 Backend
-
 Next.js API Routes
-
 DeepSeek API (LLM inference)
-
 Architecture Principles
-
 Stateless processing (no lyric storage)
-
 Abortable requests
-
 Structured AI output
-
 Prompt-injection mitigation
-
 UI-driven emotional pacing
 
 
@@ -114,55 +60,24 @@ UI-driven emotional pacing
 
 **Privacy & Storage**
 
-Lyrics are not stored
-
-Analyses are not persisted
-
-Requests are processed in-memory
-
-No database required
-
-Users are advised not to submit sensitive personal information.
+Lyra doesn't store anything anywhere, and also doesn't use any server/database. However, everything is processed through DeepSeek's API, and I make that explicit in our How it Works section.
 
 ========================================
 
 **Complexity Scoring**
 
-Lyra assigns a calibrated complexity_score (1–5) based on:
-
-- Structural layering
-
-- Metaphorical density
-
-- Thematic ambiguity
-
-- Emotional arc progression
-
-- Motif recurrence
-
-*This score is not objective and solely designed for UI and discovery features.*
+Lyra assigns a complexity score based on a variety of factors that go into lyricism.
+I just want to state that this score is purely for fun and in no way realistically interprets musical depth.
+Some main things it looks for is layering of lyrics, density of metaphors, ambiguity, emotional feeling, and motifs.
 
 ========================================
 
 **Future Directions**
 
-Artist theme profiles
-
-Shareable analysis links
-
-Multi-lens interpretation modes
-
-Public discovery feed
-
-Cached inference layer
-
-Performance optimizations for long-form lyrics
+I would love to eventually have artist theme profiles, shareable links for memorable analyses, interpretation modes that influence the output if you have knowledge of an artist/song, among others.
 
 ========================================
 
 **Why Lyra Exists**
 
-Lyra started as a passion project exploring how AI can enhance literary interpretation rather than replace it.
-
-Music has layers.
-Lyra makes those layers visible.
+Lyra started as a passion project exploring how AI can enhance literary interpretation. I know that music has an unmistakable amount of layering, and I wanted to make it more visible for people who cared.
